@@ -595,6 +595,10 @@ body {
     <div style="margin-top:10px;">
       <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">Scrub to the right moment:</div>
       <input type="range" id="recapture-scrubber" min="0" max="1000" value="0" style="width:100%;accent-color:var(--garnet);">
+      <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
+        <button id="recapture-prev" class="frame-btn" style="flex:1;text-align:center;">&#9664; Prev Frame</button>
+        <button id="recapture-next" class="frame-btn" style="flex:1;text-align:center;">Next Frame &#9654;</button>
+      </div>
     </div>
     <button id="recapture-btn" class="frame-btn primary" style="width:100%;margin-top:8px;text-align:center;">Recapture This Frame</button>
   </div>
@@ -815,14 +819,13 @@ function openRecapture(idx) {
   });
 }
 
-// Recapture scrubber — seeks video and shows preview
-document.getElementById('recapture-scrubber').addEventListener('input', async (e) => {
+// Shared function to seek video and draw preview on canvas
+async function seekAndPreview(t) {
   const dur = videoEl.duration || 1;
-  const t = (parseInt(e.target.value) / 1000) * dur;
-  videoEl.currentTime = t;
+  const clamped = Math.max(0, Math.min(t, dur));
+  videoEl.currentTime = clamped;
   await new Promise(r => { videoEl.onseeked = r; });
 
-  // Draw preview on canvas
   const tempC = document.createElement('canvas');
   tempC.width = videoEl.videoWidth;
   tempC.height = videoEl.videoHeight;
@@ -830,6 +833,27 @@ document.getElementById('recapture-scrubber').addEventListener('input', async (e
   canvas.width = tempC.width;
   canvas.height = tempC.height;
   ctx.drawImage(tempC, 0, 0);
+
+  // Sync scrubber position
+  document.getElementById('recapture-scrubber').value = Math.round((clamped / dur) * 1000);
+}
+
+// Recapture scrubber — seeks video and shows preview
+document.getElementById('recapture-scrubber').addEventListener('input', async (e) => {
+  const dur = videoEl.duration || 1;
+  const t = (parseInt(e.target.value) / 1000) * dur;
+  await seekAndPreview(t);
+});
+
+// Frame-by-frame buttons (~1/30s per step, works for 30fps and 60fps video)
+const FRAME_STEP = 1 / 30;
+
+document.getElementById('recapture-prev').addEventListener('click', async () => {
+  await seekAndPreview(videoEl.currentTime - FRAME_STEP);
+});
+
+document.getElementById('recapture-next').addEventListener('click', async () => {
+  await seekAndPreview(videoEl.currentTime + FRAME_STEP);
 });
 
 // Recapture button — replaces the frame
