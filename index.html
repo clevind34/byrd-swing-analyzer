@@ -607,6 +607,14 @@ body {
   </div>
 
   <div class="analysis-result" id="analysis-result"></div>
+
+  <!-- New Swing button (shown after analysis) -->
+  <div id="new-swing-section" style="display:none;margin-top:16px;text-align:center;">
+    <button id="new-swing-btn" style="width:100%;padding:14px;background:var(--dark3);border:2px solid var(--garnet);border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s;">
+      &#127909; Load New Swing
+    </button>
+    <div style="font-size:12px;color:var(--gray);margin-top:8px;">Do your drills, take some more swings, then upload again to track progress</div>
+  </div>
 </div>
 
 <!-- BLAST PANEL -->
@@ -882,15 +890,32 @@ function loadVideo(file) {
   };
   reader.onload = () => {
     if (uploadCancelled) return;
+    document.getElementById('upload-status').textContent = 'Processing video...';
+    document.getElementById('upload-fill').style.width = '100%';
     const blob = new Blob([reader.result], { type: file.type });
     currentVideoURL = URL.createObjectURL(blob);
-    videoEl.src = currentVideoURL;
-    videoEl.onloadeddata = () => {
+
+    // Set handler BEFORE setting src to avoid race condition
+    const onReady = () => {
       if (uploadCancelled) return;
+      videoEl.removeEventListener('loadeddata', onReady);
+      videoEl.removeEventListener('canplay', onReady);
+      clearTimeout(fallbackTimer);
       progressArea.style.display = 'none';
       document.getElementById('video-container').style.display = 'block';
       document.getElementById('extract-section').style.display = 'block';
     };
+    videoEl.addEventListener('loadeddata', onReady, { once: true });
+    videoEl.addEventListener('canplay', onReady, { once: true });
+    // Fallback: if neither event fires within 3 seconds, show anyway
+    const fallbackTimer = setTimeout(() => {
+      if (!uploadCancelled && progressArea.style.display !== 'none') {
+        onReady();
+      }
+    }, 3000);
+
+    videoEl.src = currentVideoURL;
+    videoEl.load();
   };
   reader.onerror = () => {
     if (uploadCancelled) return;
@@ -1033,6 +1058,10 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     blastSummary = `\n\nBlast Motion Data (${d.length} swings):\nAvg Bat Speed: ${avgBS} mph (max ${maxBS})\nAvg Connection: ${avgConn}\nAvg On-Plane Efficiency: ${avgOPE}%\nAvg Attack Angle: ${avgAA}°`;
   }
 
+  // Include swing history context for progress tracking
+  const historyContext = getSwingHistoryContext();
+  if (historyContext) blastSummary += historyContext;
+
   try {
     const resp = await fetch('/.netlify/functions/analyze', {
       method: 'POST',
@@ -1054,6 +1083,12 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
       fullText += chunk;
       resultEl.innerHTML = formatAnalysis(fullText);
     }
+
+    // Save to swing history for progress tracking
+    addToSwingHistory(fullText);
+
+    // Show "Load New Swing" button
+    document.getElementById('new-swing-section').style.display = 'block';
   } catch (err) {
     resultEl.textContent = 'Error: ' + err.message + '\n\nMake sure the Anthropic API key is set in Netlify environment variables.';
   }
@@ -1214,6 +1249,68 @@ function renderBlastStats(data) {
   // Update drills tab current connection
   document.getElementById('drill-current-conn').textContent = avgConn;
 }
+
+// ========== SWING SESSION MEMORY ==========
+// Stores summaries of previous analyses this session so coaching can reference progress
+let swingHistory = [];
+
+function addToSwingHistory(analysisText) {
+  // Extract a short summary from the analysis for context
+  const lines = analysisText.split('\n').filter(l => l.trim());
+  const summary = lines.slice(0, 15).join('\n'); // First 15 lines captures key points
+  swingHistory.push({
+    swingNumber: swingHistory.length + 1,
+    timestamp: new Date().toLocaleTimeString(),
+    summary: summary
+  });
+}
+
+function getSwingHistoryContext() {
+  if (swingHistory.length === 0) return '';
+  let ctx = '\n\nPREVIOUS SWINGS THIS SESSION (reference these for progress tracking):\n';
+  swingHistory.forEach(h => {
+    ctx += `\n--- Swing ${h.swingNumber} (${h.timestamp}) ---\n${h.summary}\n`;
+  });
+  ctx += `\nThis is now Swing ${swingHistory.length + 1}. Compare what you see to the previous swing(s). Note any improvements or regressions. If he fixed something from last swing, acknowledge it. If the same issue persists, reinforce the drill focus.\n`;
+  return ctx;
+}
+
+// ========== NEW SWING RESET ==========
+document.getElementById('new-swing-btn').addEventListener('click', () => {
+  // Reset everything for a fresh swing upload
+  frames = [];
+  currentFrame = 0;
+  extractCancelled = false;
+  uploadCancelled = false;
+  if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
+
+  // Reset UI
+  videoEl.src = '';
+  document.getElementById('video-container').style.display = 'none';
+  document.getElementById('extract-section').style.display = 'none';
+  document.getElementById('frame-display').style.display = 'none';
+  document.getElementById('frame-controls').style.display = 'none';
+  document.getElementById('frame-strip').classList.remove('visible');
+  document.getElementById('frame-strip').innerHTML = '';
+  document.getElementById('analyze-section').style.display = 'none';
+  document.getElementById('analysis-result').style.display = 'none';
+  document.getElementById('analysis-result').textContent = '';
+  document.getElementById('new-swing-section').style.display = 'none';
+  document.getElementById('upload-progress-area').style.display = 'none';
+
+  // Show upload zone for whichever mode is active
+  const activeMode = document.querySelector('.mode-btn.active').dataset.mode;
+  if (activeMode === 'video') {
+    document.getElementById('video-upload').style.display = 'block';
+    videoInput.value = '';
+  } else {
+    document.getElementById('image-upload').style.display = 'block';
+    imageInput.value = '';
+  }
+
+  // Scroll to top of swing panel
+  document.getElementById('panel-swing').scrollIntoView({ behavior: 'smooth' });
+});
 
 </script>
 </body>
