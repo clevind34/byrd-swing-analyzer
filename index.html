@@ -535,8 +535,16 @@ body {
     <div class="upload-zone" id="video-upload">
       <div class="icon">&#127909;</div>
       <p>Tap to upload swing video</p>
-      <div class="hint">MP4 or MOV from your camera roll</div>
+      <div class="hint">MP4 or MOV from your camera roll. Trim to just the swing for fastest results.</div>
       <input type="file" accept="video/*" id="video-input" style="display:none">
+    </div>
+
+    <!-- Upload progress / cancel -->
+    <div id="upload-progress-area" style="display:none;background:var(--dark2);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:14px;color:var(--light-gray);margin-bottom:8px;" id="upload-status">Loading video...</div>
+      <div class="progress-bar" style="display:block;margin-bottom:12px;"><div class="fill" id="upload-fill" style="width:0%;transition:width 0.3s;"></div></div>
+      <button id="cancel-upload-btn" style="padding:10px 24px;background:var(--dark3);border:1px solid #444;border-radius:8px;color:var(--red);font-size:13px;font-weight:600;cursor:pointer;">Cancel Upload</button>
+      <div style="font-size:12px;color:#555;margin-top:10px;">Tip: Trim video to just the swing (3-4 sec) for faster uploads, or switch to Still Frames mode</div>
     </div>
 
     <div class="video-container" id="video-container">
@@ -826,6 +834,9 @@ const videoUpload = document.getElementById('video-upload');
 const videoInput = document.getElementById('video-input');
 const videoEl = document.getElementById('swing-video');
 
+let uploadCancelled = false;
+let currentVideoURL = null;
+
 videoUpload.addEventListener('click', () => videoInput.click());
 videoUpload.addEventListener('dragover', e => { e.preventDefault(); videoUpload.classList.add('dragover'); });
 videoUpload.addEventListener('dragleave', () => videoUpload.classList.remove('dragover'));
@@ -836,18 +847,74 @@ videoUpload.addEventListener('drop', e => {
 });
 videoInput.addEventListener('change', e => { if (e.target.files[0]) loadVideo(e.target.files[0]); });
 
+// Cancel upload
+document.getElementById('cancel-upload-btn').addEventListener('click', () => {
+  uploadCancelled = true;
+  if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
+  videoEl.src = '';
+  document.getElementById('upload-progress-area').style.display = 'none';
+  document.getElementById('video-container').style.display = 'none';
+  document.getElementById('extract-section').style.display = 'none';
+  videoUpload.style.display = 'block';
+  videoInput.value = '';
+});
+
 function loadVideo(file) {
-  const url = URL.createObjectURL(file);
-  videoEl.src = url;
-  document.getElementById('video-container').style.display = 'block';
-  document.getElementById('extract-section').style.display = 'block';
+  uploadCancelled = false;
+  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+
+  // Show progress area
   videoUpload.style.display = 'none';
+  const progressArea = document.getElementById('upload-progress-area');
+  progressArea.style.display = 'block';
+  document.getElementById('upload-status').textContent = 'Loading video (' + sizeMB + ' MB)...';
+  document.getElementById('upload-fill').style.width = '0%';
+
+  // Use FileReader to track progress
+  const reader = new FileReader();
+  reader.onprogress = (e) => {
+    if (uploadCancelled) { reader.abort(); return; }
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      document.getElementById('upload-fill').style.width = pct + '%';
+      document.getElementById('upload-status').textContent = 'Loading video (' + sizeMB + ' MB)... ' + pct + '%';
+    }
+  };
+  reader.onload = () => {
+    if (uploadCancelled) return;
+    const blob = new Blob([reader.result], { type: file.type });
+    currentVideoURL = URL.createObjectURL(blob);
+    videoEl.src = currentVideoURL;
+    videoEl.onloadeddata = () => {
+      if (uploadCancelled) return;
+      progressArea.style.display = 'none';
+      document.getElementById('video-container').style.display = 'block';
+      document.getElementById('extract-section').style.display = 'block';
+    };
+  };
+  reader.onerror = () => {
+    if (uploadCancelled) return;
+    progressArea.style.display = 'none';
+    videoUpload.style.display = 'block';
+    alert('Error loading video. Try a shorter clip or use Still Frames mode.');
+  };
+  reader.onabort = () => {
+    // Cancelled — UI already reset by cancel handler
+  };
+  reader.readAsArrayBuffer(file);
 }
+
+let extractCancelled = false;
 
 document.getElementById('extract-btn').addEventListener('click', async () => {
   const btn = document.getElementById('extract-btn');
+  extractCancelled = false;
   btn.disabled = true;
-  btn.textContent = 'Extracting...';
+  btn.innerHTML = 'Extracting... <span style="margin-left:8px;font-size:12px;color:rgba(255,255,255,0.6);text-decoration:underline;cursor:pointer;" id="cancel-extract">Cancel</span>';
+  document.getElementById('cancel-extract').addEventListener('click', (e) => {
+    e.stopPropagation();
+    extractCancelled = true;
+  });
   const bar = document.getElementById('extract-progress');
   bar.style.display = 'block';
 
@@ -874,14 +941,24 @@ document.getElementById('extract-btn').addEventListener('click', async () => {
   tempCanvas.height = v.videoHeight;
 
   for (let i = 0; i < times.length; i++) {
+    if (extractCancelled) break;
     v.currentTime = times[i];
     await new Promise(r => { v.onseeked = r; });
+    if (extractCancelled) break;
     tempCtx.drawImage(v, 0, 0);
     const img = new Image();
     img.src = tempCanvas.toDataURL('image/jpeg', 0.85);
     await new Promise(r => { img.onload = r; });
     frames.push({ img, time: times[i], phase: null });
     bar.querySelector('.fill').style.width = ((i + 1) / times.length * 100) + '%';
+  }
+
+  if (extractCancelled) {
+    frames = [];
+    bar.style.display = 'none';
+    btn.textContent = 'Extract Frames';
+    btn.disabled = false;
+    return;
   }
 
   btn.textContent = 'Extract Frames';
