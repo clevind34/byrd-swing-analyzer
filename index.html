@@ -1033,16 +1033,36 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     for (let i = 0; i < 8; i++) indices.push(Math.round(i * (frames.length - 1) / 7));
   }
 
-  for (const idx of indices) {
+  // Estimate phase based on position in swing timeline
+  function estimatePhase(pct) {
+    if (pct <= 10) return 'Stance/Setup';
+    if (pct <= 25) return 'Load';
+    if (pct <= 45) return 'Stride/Foot Strike';
+    if (pct <= 60) return 'Rotation';
+    if (pct <= 75) return 'Contact';
+    return 'Extension/Follow-through';
+  }
+
+  for (let i = 0; i < indices.length; i++) {
+    const idx = indices[i];
     const img = frames[idx].img;
     tempC.width = Math.min(img.width, 800);
     tempC.height = Math.round(img.height * (tempC.width / img.width));
     tempX.drawImage(img, 0, 0, tempC.width, tempC.height);
     const b64 = tempC.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+    // Sequential label 1-N, plus timeline position and estimated phase
+    const pct = Math.round((idx / Math.max(frames.length - 1, 1)) * 100);
+    const userPhase = frames[idx].phase; // user-tagged phase takes priority
+    const estPhase = estimatePhase(pct);
+
     frameData.push({
       base64: b64,
-      index: idx + 1,
-      phase: frames[idx].phase || null
+      index: i + 1, // Sequential 1 through N, not original index
+      totalFrames: indices.length,
+      timelinePosition: pct,
+      phase: userPhase || null,
+      estimatedPhase: estPhase
     });
   }
 

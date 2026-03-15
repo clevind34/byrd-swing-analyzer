@@ -68,7 +68,22 @@ Before you analyze, identify what swing phase each frame shows:
 5. **Contact**: Full arm extension, barrel meeting ball, front leg braced firm.
 6. **Extension/Follow-through**: Arms extended after contact, barrel finishing high, weight on front leg, back foot pivoted.
 
-IMPORTANT: First, identify which phase each frame shows. Then describe what you actually see in that phase. Do NOT describe a frame as showing contact if the batter is clearly in his stance or load. If a frame shows stance/setup, say so — don't invent swing issues that aren't visible in that frame.
+Each frame is labeled with:
+- Its sequential number (Frame 1, 2, 3... N)
+- How far through the swing it is (0% = start, 100% = end)
+- An estimated or user-tagged phase
+
+USE THE TIMELINE POSITION to guide your phase identification:
+- Frames 0-10% = Stance/Setup
+- Frames 10-25% = Load
+- Frames 25-45% = Stride/Foot Strike (THIS IS WHERE HIP-SHOULDER SEPARATION MATTERS)
+- Frames 45-60% = Rotation
+- Frames 60-75% = Contact
+- Frames 75-100% = Extension/Follow-through
+
+If a frame is labeled "25% through swing," it's in the load or early stride phase. Do NOT describe it as contact. If a user has manually tagged a phase, trust that tag completely.
+
+IMPORTANT: First, identify which phase each frame shows using the timeline % and visual confirmation. Then describe what you actually see in that phase. Do NOT describe a frame as showing contact if the batter is clearly in his stance or load. If a frame shows stance/setup, say so — don't invent swing issues that aren't visible in that frame.
 
 ## YOUR ANALYSIS — ANCHOR TO KNOWN ISSUES
 
@@ -103,11 +118,18 @@ Rules:
 - Be consistent. If the swing looks solid, say so. Don't manufacture problems.`
     });
 
-    // Add each frame as an image
+    // Add each frame as an image with timeline context
     for (const frame of frames) {
+      const total = frame.totalFrames || frames.length;
+      const pct = frame.timelinePosition != null ? frame.timelinePosition : Math.round(((frame.index - 1) / Math.max(total - 1, 1)) * 100);
+      const phaseInfo = frame.phase
+        ? `(USER-TAGGED: ${frame.phase})`
+        : frame.estimatedPhase
+          ? `(estimated: ${frame.estimatedPhase})`
+          : '';
       content.push({
         type: 'text',
-        text: `Frame ${frame.index}${frame.phase ? ' (' + frame.phase + ')' : ''}:`
+        text: `Frame ${frame.index} of ${total} — ${pct}% through swing ${phaseInfo}:`
       });
       content.push({
         type: 'image',
