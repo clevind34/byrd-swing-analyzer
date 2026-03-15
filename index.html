@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Byrd Swing Lab</title>
+<style>
+:root {
+  --garnet: #73000A;
+  --garnet-dark: #5a0008;
+  --garnet-light: #8a1a22;
+  --black: #0a0a0a;
+  --dark: #111111;
+  --dark2: #1a1a1a;
+  --dark3: #222222;
+  --gray: #888;
+  --light-gray: #ccc;
+  --white: #f0f0f0;
+  --green: #4CAF50;
+  --yellow: #FFC107;
+  --red: #E74C3C;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--black);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Header */
+.header {
+  background: var(--garnet);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-logo {
+  font-size: 28px;
+  line-height: 1;
+}
+.header-text h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: white;
+}
+.header-text span {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* Tab nav */
+.tab-nav {
+  display: flex;
+  background: var(--dark);
+  border-bottom: 1px solid var(--dark3);
+}
+.tab-btn {
+  flex: 1;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  color: var(--gray);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  color: white;
+  border-bottom-color: var(--garnet);
+  background: var(--dark2);
+}
+
+/* Panels */
+.panel { display: none; padding: 16px; }
+.panel.active { display: block; }
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed var(--dark3);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--garnet);
+  background: rgba(115,0,10,0.1);
+}
+.upload-zone .icon { font-size: 40px; margin-bottom: 12px; }
+.upload-zone p { color: var(--gray); font-size: 14px; }
+.upload-zone .hint { font-size: 12px; color: #555; margin-top: 8px; }
+
+/* Video + frame viewer */
+.video-container {
+  display: none;
+  margin-bottom: 16px;
+}
+.video-container video {
+  width: 100%;
+  border-radius: 10px;
+  max-height: 300px;
+  object-fit: contain;
+  background: #000;
+}
+.frame-controls {
+  display: none;
+  background: var(--dark2);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.frame-scrubber {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.frame-scrubber input[type="range"] {
+  flex: 1;
+  accent-color: var(--garnet);
+  height: 6px;
+}
+.frame-count {
+  font-size: 13px;
+  color: var(--gray);
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: center;
+}
+.frame-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.frame-btn {
+  padding: 8px 16px;
+  background: var(--dark3);
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.frame-btn:active { transform: scale(0.95); }
+.frame-btn.primary {
+  background: var(--garnet);
+  border-color: var(--garnet);
+}
+
+/* Frame display */
+.frame-display {
+  display: none;
+  position: relative;
+  margin-bottom: 16px;
+}
+.frame-display canvas {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+}
+.frame-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0,0,0,0.75);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.phase-label {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--garnet);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Frame strip */
+.frame-strip {
+  display: none;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 8px 0;
+  margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.frame-strip.visible { display: flex; }
+.frame-thumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 80px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  object-fit: cover;
+  transition: border-color 0.15s;
+}
+.frame-thumb.active { border-color: var(--garnet); }
+.frame-thumb:hover { border-color: var(--garnet-light); }
+
+/* Extract button */
+.extract-section {
+  display: none;
+  text-align: center;
+  margin: 16px 0;
+}
+.extract-btn {
+  padding: 14px 32px;
+  background: var(--garnet);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+  width: 100%;
+}
+.extract-btn:hover { background: var(--garnet-light); }
+.extract-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.extract-settings {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.extract-setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--gray);
+}
+.extract-setting select, .extract-setting input {
+  background: var(--dark3);
+  border: 1px solid #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* Progress bar */
+.progress-bar {
+  display: none;
+  height: 4px;
+  background: var(--dark3);
+  border-radius: 2px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--garnet);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+
+/* Analyze button */
+.analyze-section {
+  display: none;
+  margin: 16px 0;
+}
+.analyze-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--garnet), var(--garnet-dark));
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(115,0,10,0.4); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Analysis result */
+.analysis-result {
+  display: none;
+  background: var(--dark2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--light-gray);
+  white-space: pre-wrap;
+}
+.analysis-result h3 {
+  color: white;
+  font-size: 16px;
+  margin: 16px 0 8px;
+}
+.analysis-result h3:first-child { margin-top: 0; }
+.analysis-result strong { color: white; }
+.analysis-result .elite { color: var(--green); }
+.analysis-result .fix { color: var(--yellow); }
+.analysis-result .drill { color: var(--garnet-light); }
+
+/* Blast tab */
+.blast-upload {
+  border: 2px dashed var(--dark3);
+  border-radius: 12px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+.blast-upload:hover { border-color: var(--garnet); }
+.blast-stats { display: none; }
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--dark2);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+}
+.stat-value.elite { color: var(--green); }
+.stat-value.good { color: var(--yellow); }
+.stat-value.work { color: var(--red); }
+.stat-label {
+  font-size: 11px;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+.stat-sub {
+  font-size: 11px;
+  color: #555;
+  margin-top: 2px;
+}
+.session-list { margin-top: 16px; }
+.session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--dark2);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.session-date { color: var(--light-gray); font-weight: 600; }
+.session-meta { color: var(--gray); }
+.session-conn {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Drills tab */
+.drill-card {
+  background: var(--dark2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid var(--garnet);
+}
+.drill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.drill-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+.drill-rx {
+  font-size: 12px;
+  color: var(--garnet-light);
+  background: rgba(115,0,10,0.2);
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.drill-desc {
+  font-size: 14px;
+  color: var(--light-gray);
+  line-height: 1.5;
+}
+.drill-focus {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--gray);
+  font-style: italic;
+}
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--garnet-light);
+  margin: 20px 0 10px;
+}
+.section-label:first-child { margin-top: 0; }
+
+/* Image upload mode */
+.image-upload-zone {
+  border: 2px dashed var(--dark3);
+  border-radius: 12px;
+  padding: 30px 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+.image-upload-zone:hover { border-color: var(--garnet); }
+.mode-toggle {
+  display: flex;
+  background: var(--dark2);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 16px;
+}
+.mode-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--gray);
+  transition: all 0.2s;
+}
+.mode-btn.active {
+  background: var(--garnet);
+  color: white;
+}
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+  .header { padding: 12px 16px; }
+  .header-text h1 { font-size: 16px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo">&#9918;</div>
+    <div class="header-text">
+      <h1>Byrd Swing Lab</h1>
+      <span>South Carolina Baseball</span>
+    </div>
+  </div>
+  <button onclick="document.getElementById('camera-modal').style.display='block'" style="background:rgba(255,255,255,0.15);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;" title="Camera settings">&#128247;</button>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="swing">Swing</button>
+  <button class="tab-btn" data-tab="blast">Blast Data</button>
+  <button class="tab-btn" data-tab="drills">Drills</button>
+</div>
+
+<!-- SWING PANEL -->
+<div id="panel-swing" class="panel active">
+
+  <!-- Input mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" data-mode="video">Video</button>
+    <button class="mode-btn" data-mode="images">Still Frames</button>
+  </div>
+
+  <!-- Video upload -->
+  <div id="video-mode">
+    <div class="upload-zone" id="video-upload">
+      <div class="icon">&#127909;</div>
+      <p>Tap to upload swing video</p>
+      <div class="hint">MP4 or MOV from your camera roll</div>
+      <input type="file" accept="video/*" id="video-input" style="display:none">
+    </div>
+
+    <div class="video-container" id="video-container">
+      <video id="swing-video" controls playsinline></video>
+    </div>
+
+    <div class="extract-section" id="extract-section">
+      <div class="extract-settings">
+        <div class="extract-setting">
+          <span>Frames:</span>
+          <select id="frame-interval">
+            <option value="auto">Auto (key positions)</option>
+            <option value="50">Every 50ms</option>
+            <option value="33">Every 33ms (30fps)</option>
+            <option value="16">Every 16ms (60fps)</option>
+          </select>
+        </div>
+      </div>
+      <button class="extract-btn" id="extract-btn">Extract Frames</button>
+      <div class="progress-bar" id="extract-progress"><div class="fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Image upload -->
+  <div id="image-mode" style="display:none">
+    <div class="image-upload-zone" id="image-upload">
+      <div class="icon" style="font-size:40px">&#128248;</div>
+      <p>Tap to upload swing frames</p>
+      <div class="hint" style="font-size:12px;color:#555;margin-top:8px">Select multiple images from your camera roll</div>
+      <input type="file" accept="image/*" multiple id="image-input" style="display:none">
+    </div>
+  </div>
+
+  <!-- Frame viewer (shared) -->
+  <div class="frame-strip" id="frame-strip"></div>
+
+  <div class="frame-display" id="frame-display">
+    <canvas id="frame-canvas"></canvas>
+    <div class="frame-label" id="frame-label">Frame 1</div>
+    <div class="phase-label" id="phase-label" style="display:none"></div>
+  </div>
+
+  <div class="frame-controls" id="frame-controls">
+    <div class="frame-scrubber">
+      <span class="frame-count" id="frame-info">0 / 0</span>
+      <input type="range" id="frame-slider" min="0" max="0" value="0">
+    </div>
+    <div class="frame-btns">
+      <button class="frame-btn" id="prev-frame">&#9664; Prev</button>
+      <button class="frame-btn" id="next-frame">Next &#9654;</button>
+      <button class="frame-btn primary" id="tag-phase">Tag Phase</button>
+    </div>
+  </div>
+
+  <!-- Analyze -->
+  <div class="analyze-section" id="analyze-section">
+    <button class="analyze-btn" id="analyze-btn">
+      &#9918; Analyze Swing
+    </button>
+  </div>
+
+  <div class="analysis-result" id="analysis-result"></div>
+</div>
+
+<!-- BLAST PANEL -->
+<div id="panel-blast" class="panel">
+  <div class="blast-upload" id="blast-upload">
+    <div style="font-size:32px;margin-bottom:8px">&#128202;</div>
+    <p style="color:var(--gray);font-size:14px">Upload Blast Motion CSV</p>
+    <div style="font-size:12px;color:#555;margin-top:6px">Export from the Blast app</div>
+    <input type="file" accept=".csv" id="blast-input" style="display:none">
+  </div>
+
+  <div class="blast-stats" id="blast-stats">
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="section-label">Sessions</div>
+    <div class="session-list" id="session-list"></div>
+  </div>
+</div>
+
+<!-- CAMERA SETTINGS PANEL (hidden by default, shown via help icon) -->
+<div id="camera-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:200;overflow-y:auto;padding:20px;">
+  <div style="max-width:500px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:18px;color:white;">iPhone Camera Setup</h2>
+      <button onclick="document.getElementById('camera-modal').style.display='none'" style="background:var(--dark3);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;">&#10005;</button>
+    </div>
+
+    <div style="background:var(--dark2);border-radius:12px;padding:16px;margin-bottom:12px;border-left:3px solid var(--garnet);">
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:8px;">Best settings for swing video</div>
+      <div style="font-size:13px;color:var(--light-gray);line-height:1.6;">
+        <strong style="color:var(--garnet-light);">Settings &gt; Camera &gt; Record Video:</strong><br>
+        Select <strong>4K at 120fps</strong> (or 1080p at 240fps if you want more frames to work with). The iPhone 17 supports both. 120fps at 4K is the sweet spot for swing analysis — sharp frames with enough resolution to see hand position and barrel angle.<br><br>
+
+        <strong style="color:var(--garnet-light);">Settings &gt; Camera &gt; Record Slo-mo:</strong><br>
+        Set to <strong>1080p at 240fps</strong>. Use Slo-mo mode if you want to scrub through the swing in the Photos app before uploading. The app will extract the full-speed frames either way.<br><br>
+
+        <strong style="color:var(--garnet-light);">Lock exposure and focus:</strong><br>
+        Before recording, tap and hold on Gavin in the frame until you see <em>AE/AF Lock</em> appear. This prevents the camera from hunting for focus mid-swing, which causes blur on the barrel.
+      </div>
+    </div>
+
+    <div style="background:var(--dark2);border-radius:12px;padding:16px;margin-bottom:12px;border-left:3px solid var(--yellow);">
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:8px;">Camera position</div>
+      <div style="font-size:13px;color:var(--light-gray);line-height:1.6;">
+        <strong>Best angle:</strong> Directly to the side (perpendicular), at hip height. If you're filming from the 1B or 3B side, get far enough back to see the full swing without panning.<br><br>
+        <strong>Distance:</strong> About 10-15 feet away. Close enough to see hand and hip detail, far enough to capture the full body.<br><br>
+        <strong>Tripod:</strong> Use one if you have it. A steady camera makes frame extraction way better. Even a phone clamp on a fence works.<br><br>
+        <strong>Lighting:</strong> Face the light source. Don't shoot into the sun or stadium lights. The cage is usually fine. For outdoor games, shoot from the side where the light is behind you.
+      </div>
+    </div>
+
+    <div style="background:var(--dark2);border-radius:12px;padding:16px;border-left:3px solid var(--green);">
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:8px;">Quick recording checklist</div>
+      <div style="font-size:13px;color:var(--light-gray);line-height:1.6;">
+        &#10003; 4K / 120fps or Slo-mo 240fps<br>
+        &#10003; AE/AF Lock on the hitter<br>
+        &#10003; Side angle, hip height<br>
+        &#10003; 10-15 feet away, no panning<br>
+        &#10003; Light behind you, not behind the hitter<br>
+        &#10003; Start recording before the pitch, stop after follow-through
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DRILLS PANEL -->
+<div id="panel-drills" class="panel">
+  <div class="section-label">Current focus</div>
+  <div style="background:var(--dark2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:14px;color:var(--light-gray);border-left:3px solid var(--yellow);">
+    Upper body opening too early when swinging hard. Connection score averaging 62, goal is 70+.
+  </div>
+
+  <div class="section-label">Pre-cage warmup</div>
+
+  <div class="drill-card">
+    <div class="drill-header">
+      <span class="drill-name">Separation Freeze</span>
+      <span class="drill-rx">15 reps</span>
+    </div>
+    <div class="drill-desc">Stride and freeze. Don't swing. Check: hips starting to open, front shoulder still pointed at the catcher. If your shoulder opened with your hips, reset.</div>
+    <div class="drill-focus">Focus: Feel the stretch across your midsection at foot strike</div>
+  </div>
+
+  <div class="drill-card">
+    <div class="drill-header">
+      <span class="drill-name">Med Ball Wall Throws</span>
+      <span class="drill-rx">3 x 8</span>
+    </div>
+    <div class="drill-desc">Stand sideways to a wall. Load back, throw a 6-8 lb med ball into the wall by rotating hips first, arms follow. If your arms are doing the work, slow down.</div>
+    <div class="drill-focus">Focus: Hips start the throw, arms just come along for the ride</div>
+  </div>
+
+  <div class="section-label">Cage work</div>
+
+  <div class="drill-card">
+    <div class="drill-header">
+      <span class="drill-name">Post-Up Tee Work</span>
+      <span class="drill-rx">20 swings</span>
+    </div>
+    <div class="drill-desc">Only focus: front leg firm at contact like a post. Hold your finish 2 seconds. If your front knee is soft or you're falling forward, that's energy leaking.</div>
+    <div class="drill-focus">Focus: Firm front leg, balanced finish you can hold</div>
+  </div>
+
+  <div class="section-label" style="margin-top:24px">Track your progress</div>
+  <div style="background:var(--dark2);border-radius:10px;padding:16px;display:flex;justify-content:space-around;text-align:center;">
+    <div>
+      <div style="font-size:28px;font-weight:700;color:var(--red);" id="drill-current-conn">62</div>
+      <div style="font-size:11px;color:var(--gray);margin-top:2px;">Current avg</div>
+    </div>
+    <div style="font-size:24px;color:var(--gray);align-self:center;">&#8594;</div>
+    <div>
+      <div style="font-size:28px;font-weight:700;color:var(--green);">70+</div>
+      <div style="font-size:11px;color:var(--gray);margin-top:2px;">Goal</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== TAB NAVIGATION ==========
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ========== INPUT MODE TOGGLE ==========
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('video-mode').style.display = btn.dataset.mode === 'video' ? 'block' : 'none';
+    document.getElementById('image-mode').style.display = btn.dataset.mode === 'images' ? 'block' : 'none';
+  });
+});
+
+// ========== FRAME STATE ==========
+let frames = [];
+let currentFrame = 0;
+const canvas = document.getElementById('frame-canvas');
+const ctx = canvas.getContext('2d');
+const phases = ['Stance', 'Load', 'Stride', 'Rotation', 'Contact', 'Extension'];
+
+function showFrame(idx) {
+  if (idx < 0 || idx >= frames.length) return;
+  currentFrame = idx;
+  const img = frames[idx].img;
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  ctx.drawImage(img, 0, 0);
+  document.getElementById('frame-label').textContent = 'Frame ' + (idx + 1) + ' / ' + frames.length;
+  document.getElementById('frame-info').textContent = (idx + 1) + ' / ' + frames.length;
+  document.getElementById('frame-slider').value = idx;
+
+  const pl = document.getElementById('phase-label');
+  if (frames[idx].phase) {
+    pl.textContent = frames[idx].phase;
+    pl.style.display = 'block';
+  } else {
+    pl.style.display = 'none';
+  }
+
+  // Update strip highlights
+  document.querySelectorAll('.frame-thumb').forEach((t, i) => {
+    t.classList.toggle('active', i === idx);
+  });
+}
+
+function showFrameUI() {
+  document.getElementById('frame-display').style.display = 'block';
+  document.getElementById('frame-controls').style.display = 'block';
+  document.getElementById('frame-strip').classList.add('visible');
+  document.getElementById('analyze-section').style.display = 'block';
+  const slider = document.getElementById('frame-slider');
+  slider.max = frames.length - 1;
+  slider.value = 0;
+  buildStrip();
+  showFrame(0);
+}
+
+function buildStrip() {
+  const strip = document.getElementById('frame-strip');
+  strip.innerHTML = '';
+  frames.forEach((f, i) => {
+    const thumb = document.createElement('canvas');
+    thumb.className = 'frame-thumb';
+    thumb.width = 64;
+    thumb.height = 80;
+    const tc = thumb.getContext('2d');
+    const img = f.img;
+    const scale = Math.max(64 / img.width, 80 / img.height);
+    const sw = img.width * scale;
+    const sh = img.height * scale;
+    tc.drawImage(img, (64 - sw) / 2, (80 - sh) / 2, sw, sh);
+    thumb.addEventListener('click', () => showFrame(i));
+    strip.appendChild(thumb);
+  });
+}
+
+// Frame controls
+document.getElementById('frame-slider').addEventListener('input', e => showFrame(parseInt(e.target.value)));
+document.getElementById('prev-frame').addEventListener('click', () => showFrame(currentFrame - 1));
+document.getElementById('next-frame').addEventListener('click', () => showFrame(currentFrame + 1));
+
+// Tag phase
+let phaseIdx = 0;
+document.getElementById('tag-phase').addEventListener('click', () => {
+  frames[currentFrame].phase = phases[phaseIdx % phases.length];
+  document.getElementById('phase-label').textContent = frames[currentFrame].phase;
+  document.getElementById('phase-label').style.display = 'block';
+  phaseIdx++;
+  // Auto-advance
+  if (currentFrame < frames.length - 1) showFrame(currentFrame + 1);
+});
+
+// Keyboard nav
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') showFrame(currentFrame - 1);
+  if (e.key === 'ArrowRight') showFrame(currentFrame + 1);
+});
+
+// ========== VIDEO UPLOAD + EXTRACTION ==========
+const videoUpload = document.getElementById('video-upload');
+const videoInput = document.getElementById('video-input');
+const videoEl = document.getElementById('swing-video');
+
+videoUpload.addEventListener('click', () => videoInput.click());
+videoUpload.addEventListener('dragover', e => { e.preventDefault(); videoUpload.classList.add('dragover'); });
+videoUpload.addEventListener('dragleave', () => videoUpload.classList.remove('dragover'));
+videoUpload.addEventListener('drop', e => {
+  e.preventDefault();
+  videoUpload.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) loadVideo(e.dataTransfer.files[0]);
+});
+videoInput.addEventListener('change', e => { if (e.target.files[0]) loadVideo(e.target.files[0]); });
+
+function loadVideo(file) {
+  const url = URL.createObjectURL(file);
+  videoEl.src = url;
+  document.getElementById('video-container').style.display = 'block';
+  document.getElementById('extract-section').style.display = 'block';
+  videoUpload.style.display = 'none';
+}
+
+document.getElementById('extract-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('extract-btn');
+  btn.disabled = true;
+  btn.textContent = 'Extracting...';
+  const bar = document.getElementById('extract-progress');
+  bar.style.display = 'block';
+
+  frames = [];
+  const v = videoEl;
+  await new Promise(r => { v.currentTime = 0; v.onseeked = r; });
+
+  const intervalSel = document.getElementById('frame-interval').value;
+  let times = [];
+  const dur = v.duration;
+
+  if (intervalSel === 'auto') {
+    // Extract ~12 frames spread across the swing
+    const count = Math.min(16, Math.max(8, Math.floor(dur * 30)));
+    for (let i = 0; i < count; i++) times.push((i / (count - 1)) * dur);
+  } else {
+    const ms = parseInt(intervalSel);
+    for (let t = 0; t < dur; t += ms / 1000) times.push(t);
+  }
+
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCanvas.width = v.videoWidth;
+  tempCanvas.height = v.videoHeight;
+
+  for (let i = 0; i < times.length; i++) {
+    v.currentTime = times[i];
+    await new Promise(r => { v.onseeked = r; });
+    tempCtx.drawImage(v, 0, 0);
+    const img = new Image();
+    img.src = tempCanvas.toDataURL('image/jpeg', 0.85);
+    await new Promise(r => { img.onload = r; });
+    frames.push({ img, time: times[i], phase: null });
+    bar.querySelector('.fill').style.width = ((i + 1) / times.length * 100) + '%';
+  }
+
+  btn.textContent = 'Extract Frames';
+  btn.disabled = false;
+  bar.style.display = 'none';
+  showFrameUI();
+});
+
+// ========== IMAGE UPLOAD ==========
+const imageUpload = document.getElementById('image-upload');
+const imageInput = document.getElementById('image-input');
+
+imageUpload.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name));
+  frames = [];
+  for (const file of files) {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    await new Promise(r => { img.onload = r; });
+    frames.push({ img, time: 0, phase: null, name: file.name });
+  }
+  imageUpload.style.display = 'none';
+  showFrameUI();
+});
+
+// ========== AI ANALYSIS ==========
+document.getElementById('analyze-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  const resultEl = document.getElementById('analysis-result');
+  resultEl.style.display = 'block';
+  resultEl.textContent = 'Sending frames to AI for analysis...';
+
+  // Collect frames as base64
+  const frameData = [];
+  const tempC = document.createElement('canvas');
+  const tempX = tempC.getContext('2d');
+
+  // Pick up to 8 frames (evenly spaced if more)
+  let indices = [];
+  if (frames.length <= 8) {
+    indices = frames.map((_, i) => i);
+  } else {
+    for (let i = 0; i < 8; i++) indices.push(Math.round(i * (frames.length - 1) / 7));
+  }
+
+  for (const idx of indices) {
+    const img = frames[idx].img;
+    tempC.width = Math.min(img.width, 800);
+    tempC.height = Math.round(img.height * (tempC.width / img.width));
+    tempX.drawImage(img, 0, 0, tempC.width, tempC.height);
+    const b64 = tempC.toDataURL('image/jpeg', 0.7).split(',')[1];
+    frameData.push({
+      base64: b64,
+      index: idx + 1,
+      phase: frames[idx].phase || null
+    });
+  }
+
+  // Include blast data summary if available
+  let blastSummary = '';
+  if (window._blastData && window._blastData.length > 0) {
+    const d = window._blastData;
+    const avgBS = (d.reduce((s, r) => s + r.batSpeed, 0) / d.length).toFixed(1);
+    const avgConn = (d.reduce((s, r) => s + r.connection, 0) / d.length).toFixed(0);
+    const avgOPE = (d.reduce((s, r) => s + r.onPlane, 0) / d.length).toFixed(1);
+    const avgAA = (d.reduce((s, r) => s + r.attackAngle, 0) / d.length).toFixed(1);
+    const maxBS = Math.max(...d.map(r => r.batSpeed)).toFixed(1);
+    blastSummary = `\n\nBlast Motion Data (${d.length} swings):\nAvg Bat Speed: ${avgBS} mph (max ${maxBS})\nAvg Connection: ${avgConn}\nAvg On-Plane Efficiency: ${avgOPE}%\nAvg Attack Angle: ${avgAA}°`;
+  }
+
+  try {
+    const resp = await fetch('/.netlify/functions/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frames: frameData, blastSummary })
+    });
+
+    if (!resp.ok) throw new Error('Analysis failed: ' + resp.status);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    resultEl.textContent = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      fullText += chunk;
+      resultEl.innerHTML = formatAnalysis(fullText);
+    }
+  } catch (err) {
+    resultEl.textContent = 'Error: ' + err.message + '\n\nMake sure the Anthropic API key is set in Netlify environment variables.';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '&#9918; Analyze Swing';
+});
+
+function formatAnalysis(text) {
+  return text
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+// ========== BLAST CSV PARSER ==========
+const blastUpload = document.getElementById('blast-upload');
+const blastInput = document.getElementById('blast-input');
+
+blastUpload.addEventListener('click', () => blastInput.click());
+blastInput.addEventListener('change', e => {
+  if (e.target.files[0]) parseBlastCSV(e.target.files[0]);
+});
+
+function parseBlastCSV(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const lines = e.target.result.split('\n');
+    const data = [];
+    let headerIdx = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('Date,')) { headerIdx = i; break; }
+    }
+    if (headerIdx === -1) return alert('Could not find data header in CSV');
+
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const row = parseCSVLine(lines[i]);
+      if (row.length < 17) continue;
+      if (row[2] && row[2].trim() === 'Left') continue; // skip errant lefty
+
+      const batSpeed = parseFloat(row[7]);
+      const connection = parseInt(row[5]);
+      const rotation = parseInt(row[6]);
+      const onPlane = parseFloat(row[9]);
+      const attackAngle = parseFloat(row[10]);
+      const power = parseFloat(row[14]);
+      const plane = parseInt(row[4]);
+
+      if (isNaN(batSpeed)) continue;
+
+      data.push({
+        date: row[0].replace(/"/g, ''),
+        equipment: row[1].replace(/"/g, ''),
+        type: row[3].replace(/"/g, ''),
+        batSpeed, connection, rotation, onPlane,
+        attackAngle, power, plane
+      });
+    }
+
+    window._blastData = data;
+    renderBlastStats(data);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current);
+  return result;
+}
+
+function renderBlastStats(data) {
+  blastUpload.style.display = 'none';
+  document.getElementById('blast-stats').style.display = 'block';
+
+  const avgBS = (data.reduce((s, r) => s + r.batSpeed, 0) / data.length).toFixed(1);
+  const maxBS = Math.max(...data.map(r => r.batSpeed)).toFixed(1);
+  const avgConn = (data.reduce((s, r) => s + r.connection, 0) / data.length).toFixed(0);
+  const avgOPE = (data.reduce((s, r) => s + r.onPlane, 0) / data.length).toFixed(1);
+  const avgAA = (data.reduce((s, r) => s + r.attackAngle, 0) / data.length).toFixed(1);
+  const avgRot = (data.reduce((s, r) => s + r.rotation, 0) / data.length).toFixed(0);
+  const qualityPct = ((data.filter(r => r.batSpeed >= 66 && r.onPlane >= 75).length / data.length) * 100).toFixed(0);
+
+  const connClass = avgConn >= 70 ? 'elite' : avgConn >= 60 ? 'good' : 'work';
+  const opeClass = avgOPE >= 75 ? 'elite' : avgOPE >= 70 ? 'good' : 'work';
+
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${avgBS}</div>
+      <div class="stat-label">Avg Bat Speed</div>
+      <div class="stat-sub">Max: ${maxBS} mph</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value ${connClass}">${avgConn}</div>
+      <div class="stat-label">Avg Connection</div>
+      <div class="stat-sub">Goal: 70+</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value ${opeClass}">${avgOPE}%</div>
+      <div class="stat-label">On-Plane Efficiency</div>
+      <div class="stat-sub">Goal: 75%+</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value elite">${avgRot}</div>
+      <div class="stat-label">Rotation Score</div>
+      <div class="stat-sub">80 = max</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${avgAA}°</div>
+      <div class="stat-label">Attack Angle</div>
+      <div class="stat-sub">Target: 10-15°</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value ${qualityPct >= 30 ? 'elite' : qualityPct >= 20 ? 'good' : 'work'}">${qualityPct}%</div>
+      <div class="stat-label">Quality Swings</div>
+      <div class="stat-sub">BS≥66 + OPE≥75</div>
+    </div>
+  `;
+
+  // Session breakdown
+  const sessions = {};
+  data.forEach(r => {
+    const day = r.date.split(' ').slice(0, 3).join(' ');
+    if (!sessions[day]) sessions[day] = [];
+    sessions[day].push(r);
+  });
+
+  const sessionList = document.getElementById('session-list');
+  sessionList.innerHTML = '';
+  // Sort sessions by date descending
+  const sortedDays = Object.keys(sessions).sort((a, b) => new Date(b) - new Date(a));
+
+  for (const day of sortedDays) {
+    const s = sessions[day];
+    const sBS = (s.reduce((x, r) => x + r.batSpeed, 0) / s.length).toFixed(1);
+    const sConn = Math.round(s.reduce((x, r) => x + r.connection, 0) / s.length);
+    const connColor = sConn >= 70 ? 'var(--green)' : sConn >= 60 ? 'var(--yellow)' : 'var(--red)';
+    const row = document.createElement('div');
+    row.className = 'session-row';
+    row.innerHTML = `
+      <span class="session-date">${day}</span>
+      <span class="session-meta">${s.length} swings · ${sBS} mph</span>
+      <span class="session-conn" style="background:${connColor};color:white;">${sConn}</span>
+    `;
+    sessionList.appendChild(row);
+  }
+
+  // Update drills tab current connection
+  document.getElementById('drill-current-conn').textContent = avgConn;
+}
+
+</script>
+</body>
+</html>
