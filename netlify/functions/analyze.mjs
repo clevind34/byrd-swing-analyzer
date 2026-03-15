@@ -68,22 +68,19 @@ Before you analyze, identify what swing phase each frame shows:
 5. **Contact**: Full arm extension, barrel meeting ball, front leg braced firm.
 6. **Extension/Follow-through**: Arms extended after contact, barrel finishing high, weight on front leg, back foot pivoted.
 
-Each frame is labeled with:
-- Its sequential number (Frame 1, 2, 3... N)
-- How far through the swing it is (0% = start, 100% = end)
-- An estimated or user-tagged phase
+Each frame is labeled "Frame N of Total" and matches EXACTLY what the user sees in the app's thumbnail strip. When you say "Frame 9" the user will look at the 9th thumbnail. Get it right.
 
-USE THE TIMELINE POSITION to guide your phase identification:
-- Frames 0-10% = Stance/Setup
-- Frames 10-25% = Load
-- Frames 25-45% = Stride/Foot Strike (THIS IS WHERE HIP-SHOULDER SEPARATION MATTERS)
-- Frames 45-60% = Rotation
-- Frames 60-75% = Contact
-- Frames 75-100% = Extension/Follow-through
+The video may include dead time before and after the actual swing. Not every frame shows a swing phase. Some frames might show the batter standing, walking to the box, or resetting.
 
-If a frame is labeled "25% through swing," it's in the load or early stride phase. Do NOT describe it as contact. If a user has manually tagged a phase, trust that tag completely.
+BEFORE writing your analysis, mentally go through all frames and identify which ones correspond to which phase:
+- Find the frame where the batter is in his stance (bat up, balanced, waiting)
+- Find the frame where he starts his load (hands/hips coil back)
+- Find the frame where his front foot lands (FOOT STRIKE — this is where hip-shoulder separation matters)
+- Find the frame where hips are fully open and barrel is coming through (ROTATION)
+- Find the frame closest to contact (full arm extension, barrel at the ball)
+- Find the frame showing follow-through (arms extended, back foot pivoted)
 
-IMPORTANT: First, identify which phase each frame shows using the timeline % and visual confirmation. Then describe what you actually see in that phase. Do NOT describe a frame as showing contact if the batter is clearly in his stance or load. If a frame shows stance/setup, say so — don't invent swing issues that aren't visible in that frame.
+IMPORTANT: Look at each image carefully. If a frame shows a batter standing in his stance, do NOT say that frame shows "contact" or "rotation." Only describe what you ACTUALLY SEE in each frame. The frame numbers are all that matter — there are no percentage timestamps.
 
 ## YOUR ANALYSIS — ANCHOR TO KNOWN ISSUES
 
@@ -118,18 +115,13 @@ Rules:
 - Be consistent. If the swing looks solid, say so. Don't manufacture problems.`
     });
 
-    // Add each frame as an image with timeline context
+    // Add each frame as an image — simple labels matching the thumbnail strip
     for (const frame of frames) {
       const total = frame.totalFrames || frames.length;
-      const pct = frame.timelinePosition != null ? frame.timelinePosition : Math.round(((frame.index - 1) / Math.max(total - 1, 1)) * 100);
-      const phaseInfo = frame.phase
-        ? `(USER-TAGGED: ${frame.phase})`
-        : frame.estimatedPhase
-          ? `(estimated: ${frame.estimatedPhase})`
-          : '';
+      const tag = frame.phase ? ` (${frame.phase})` : '';
       content.push({
         type: 'text',
-        text: `Frame ${frame.index} of ${total} — ${pct}% through swing ${phaseInfo}:`
+        text: `Frame ${frame.index} of ${total}${tag}:`
       });
       content.push({
         type: 'image',

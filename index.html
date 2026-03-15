@@ -1020,49 +1020,25 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
   resultEl.style.display = 'block';
   resultEl.textContent = 'Sending frames to AI for analysis...';
 
-  // Collect frames as base64
+  // Collect ALL frames as base64 — no subsampling
+  // Frame numbers must match exactly what Gavin sees in the thumbnail strip
   const frameData = [];
   const tempC = document.createElement('canvas');
   const tempX = tempC.getContext('2d');
 
-  // Pick up to 8 frames (evenly spaced if more)
-  let indices = [];
-  if (frames.length <= 8) {
-    indices = frames.map((_, i) => i);
-  } else {
-    for (let i = 0; i < 8; i++) indices.push(Math.round(i * (frames.length - 1) / 7));
-  }
-
-  // Estimate phase based on position in swing timeline
-  function estimatePhase(pct) {
-    if (pct <= 10) return 'Stance/Setup';
-    if (pct <= 25) return 'Load';
-    if (pct <= 45) return 'Stride/Foot Strike';
-    if (pct <= 60) return 'Rotation';
-    if (pct <= 75) return 'Contact';
-    return 'Extension/Follow-through';
-  }
-
-  for (let i = 0; i < indices.length; i++) {
-    const idx = indices[i];
-    const img = frames[idx].img;
-    tempC.width = Math.min(img.width, 800);
+  for (let i = 0; i < frames.length; i++) {
+    const img = frames[i].img;
+    // Scale down for API but keep enough detail to see hands/hips
+    tempC.width = Math.min(img.width, 640);
     tempC.height = Math.round(img.height * (tempC.width / img.width));
     tempX.drawImage(img, 0, 0, tempC.width, tempC.height);
-    const b64 = tempC.toDataURL('image/jpeg', 0.7).split(',')[1];
-
-    // Sequential label 1-N, plus timeline position and estimated phase
-    const pct = Math.round((idx / Math.max(frames.length - 1, 1)) * 100);
-    const userPhase = frames[idx].phase; // user-tagged phase takes priority
-    const estPhase = estimatePhase(pct);
+    const b64 = tempC.toDataURL('image/jpeg', 0.6).split(',')[1];
 
     frameData.push({
       base64: b64,
-      index: i + 1, // Sequential 1 through N, not original index
-      totalFrames: indices.length,
-      timelinePosition: pct,
-      phase: userPhase || null,
-      estimatedPhase: estPhase
+      index: i + 1,
+      totalFrames: frames.length,
+      phase: frames[i].phase || null  // only if user tagged it
     });
   }
 
