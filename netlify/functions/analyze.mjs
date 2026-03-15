@@ -93,11 +93,18 @@ Your analysis should be anchored to Gavin's known development priorities above. 
 
 Structure your response exactly like this:
 
+## Frame map
+List EVERY frame with its number and what phase it shows. Example:
+- Frame 1: Stance — bat up, waiting
+- Frame 2: Load — hands coiling back
+- Frame 3: Stride — front foot lifting
+...and so on for ALL frames. This is required. Do not skip this section.
+
 ## What's working
 2-3 things that look good. Be specific about what you see in the frames. Always lead with his elite rotation and attack angle if visible.
 
 ## The one thing to fix
-Anchor to his known issue (connection/hip-shoulder separation) unless you see clear evidence of something different. Reference the specific frame number. Describe what his body is actually doing in that frame and what it should be doing instead.
+Anchor to his known issue (connection/hip-shoulder separation) unless you see clear evidence of something different. Reference the specific frame number FROM YOUR FRAME MAP ABOVE. Describe what his body is actually doing in that frame and what it should be doing instead.
 
 ## How to fix it
 Reference his prescribed drills (Separation Freeze, Med Ball Wall Throws, Post-Up Tee Work). Only suggest a different drill if you see a genuinely different mechanical issue.
