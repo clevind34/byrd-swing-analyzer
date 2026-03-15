@@ -212,28 +212,32 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Frame strip */
-.frame-strip {
-  display: none;
-  overflow-x: auto;
-  gap: 6px;
-  padding: 8px 0;
-  margin-bottom: 16px;
-  -webkit-overflow-scrolling: touch;
-}
-.frame-strip.visible { display: flex; }
-.frame-thumb {
-  flex-shrink: 0;
-  width: 64px;
-  height: 80px;
-  border-radius: 6px;
-  border: 2px solid transparent;
+/* Phase cards */
+.phase-card {
+  background: var(--dark2);
+  border-radius: 10px;
+  padding: 6px;
+  text-align: center;
   cursor: pointer;
-  object-fit: cover;
+  border: 2px solid transparent;
   transition: border-color 0.15s;
 }
-.frame-thumb.active { border-color: var(--garnet); }
-.frame-thumb:hover { border-color: var(--garnet-light); }
+.phase-card.selected { border-color: var(--garnet); }
+.phase-card canvas {
+  width: 100%;
+  border-radius: 6px;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  background: #000;
+}
+.phase-card .phase-name {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--garnet-light);
+  margin-top: 4px;
+}
 
 /* Extract button */
 .extract-section {
@@ -559,18 +563,8 @@ body {
     </div>
 
     <div class="extract-section" id="extract-section">
-      <div class="extract-settings">
-        <div class="extract-setting">
-          <span>Frames:</span>
-          <select id="frame-interval">
-            <option value="auto">Auto (key positions)</option>
-            <option value="50">Every 50ms</option>
-            <option value="33">Every 33ms (30fps)</option>
-            <option value="16">Every 16ms (60fps)</option>
-          </select>
-        </div>
-      </div>
-      <button class="extract-btn" id="extract-btn">Extract Frames</button>
+      <button class="extract-btn" id="extract-btn">Extract 6 Key Frames</button>
+      <div style="font-size:12px;color:#555;text-align:center;margin-top:8px;">Stance · Load · Foot Strike · Early Rotation · Contact · Extension</div>
       <div class="progress-bar" id="extract-progress"><div class="fill"></div></div>
     </div>
   </div>
@@ -585,25 +579,24 @@ body {
     </div>
   </div>
 
-  <!-- Frame viewer (shared) -->
-  <div class="frame-strip" id="frame-strip"></div>
-
-  <div class="frame-display" id="frame-display">
-    <canvas id="frame-canvas"></canvas>
-    <div class="frame-label" id="frame-label">Frame 1</div>
-    <div class="phase-label" id="phase-label" style="display:none"></div>
+  <!-- Phase frame strip — 6 labeled cards -->
+  <div id="phase-strip" style="display:none;margin-bottom:16px;">
+    <div style="font-size:13px;color:var(--gray);margin-bottom:8px;text-align:center;">Tap a frame to adjust it. Scrub the video and tap Recapture.</div>
+    <div id="phase-cards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
   </div>
 
-  <div class="frame-controls" id="frame-controls">
-    <div class="frame-scrubber">
-      <span class="frame-count" id="frame-info">0 / 0</span>
-      <input type="range" id="frame-slider" min="0" max="0" value="0">
+  <!-- Selected frame viewer + recapture -->
+  <div id="recapture-section" style="display:none;background:var(--dark2);border-radius:12px;padding:12px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span id="recapture-phase" style="font-size:14px;font-weight:700;color:var(--garnet-light);"></span>
+      <button id="recapture-close" style="background:none;border:none;color:var(--gray);font-size:18px;cursor:pointer;">&#10005;</button>
     </div>
-    <div class="frame-btns">
-      <button class="frame-btn" id="prev-frame">&#9664; Prev</button>
-      <button class="frame-btn" id="next-frame">Next &#9654;</button>
-      <button class="frame-btn primary" id="tag-phase">Tag Phase</button>
+    <canvas id="frame-canvas" style="width:100%;border-radius:8px;background:#000;"></canvas>
+    <div style="margin-top:10px;">
+      <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">Scrub to the right moment:</div>
+      <input type="range" id="recapture-scrubber" min="0" max="1000" value="0" style="width:100%;accent-color:var(--garnet);">
     </div>
+    <button id="recapture-btn" class="frame-btn primary" style="width:100%;margin-top:8px;text-align:center;">Recapture This Frame</button>
   </div>
 
   <!-- Analyze -->
@@ -762,86 +755,118 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 // ========== FRAME STATE ==========
 let frames = [];
 let currentFrame = 0;
+let selectedCardIdx = -1;
 const canvas = document.getElementById('frame-canvas');
 const ctx = canvas.getContext('2d');
-const phases = ['Stance', 'Load', 'Stride', 'Rotation', 'Contact', 'Extension'];
+const PHASES = ['Stance', 'Load', 'Foot Strike', 'Early Rotation', 'Contact', 'Extension'];
 
-function showFrame(idx) {
-  if (idx < 0 || idx >= frames.length) return;
-  currentFrame = idx;
-  const img = frames[idx].img;
+function showPhaseCards() {
+  const container = document.getElementById('phase-cards');
+  container.innerHTML = '';
+  document.getElementById('phase-strip').style.display = 'block';
+  document.getElementById('analyze-section').style.display = 'block';
+
+  frames.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'phase-card';
+    card.dataset.idx = i;
+
+    const thumb = document.createElement('canvas');
+    thumb.width = 200;
+    thumb.height = 267;
+    const tc = thumb.getContext('2d');
+    const img = f.img;
+    const scale = Math.max(200 / img.width, 267 / img.height);
+    const sw = img.width * scale;
+    const sh = img.height * scale;
+    tc.drawImage(img, (200 - sw) / 2, (267 - sh) / 2, sw, sh);
+
+    const label = document.createElement('div');
+    label.className = 'phase-name';
+    label.textContent = f.phase;
+
+    card.appendChild(thumb);
+    card.appendChild(label);
+    card.addEventListener('click', () => openRecapture(i));
+    container.appendChild(card);
+  });
+}
+
+function openRecapture(idx) {
+  selectedCardIdx = idx;
+  const f = frames[idx];
+  document.getElementById('recapture-phase').textContent = f.phase;
+  document.getElementById('recapture-section').style.display = 'block';
+
+  // Draw current frame on canvas
+  const img = f.img;
   canvas.width = img.naturalWidth || img.width;
   canvas.height = img.naturalHeight || img.height;
   ctx.drawImage(img, 0, 0);
-  document.getElementById('frame-label').textContent = 'Frame ' + (idx + 1) + ' / ' + frames.length;
-  document.getElementById('frame-info').textContent = (idx + 1) + ' / ' + frames.length;
-  document.getElementById('frame-slider').value = idx;
 
-  const pl = document.getElementById('phase-label');
-  if (frames[idx].phase) {
-    pl.textContent = frames[idx].phase;
-    pl.style.display = 'block';
-  } else {
-    pl.style.display = 'none';
-  }
+  // Set scrubber to this frame's time position
+  const dur = videoEl.duration || 1;
+  const scrubber = document.getElementById('recapture-scrubber');
+  scrubber.value = Math.round((f.time / dur) * 1000);
 
-  // Update strip highlights
-  document.querySelectorAll('.frame-thumb').forEach((t, i) => {
-    t.classList.toggle('active', i === idx);
+  // Highlight selected card
+  document.querySelectorAll('.phase-card').forEach((c, i) => {
+    c.classList.toggle('selected', i === idx);
   });
 }
 
-function showFrameUI() {
-  document.getElementById('frame-display').style.display = 'block';
-  document.getElementById('frame-controls').style.display = 'block';
-  document.getElementById('frame-strip').classList.add('visible');
-  document.getElementById('analyze-section').style.display = 'block';
-  const slider = document.getElementById('frame-slider');
-  slider.max = frames.length - 1;
-  slider.value = 0;
-  buildStrip();
-  showFrame(0);
-}
+// Recapture scrubber — seeks video and shows preview
+document.getElementById('recapture-scrubber').addEventListener('input', async (e) => {
+  const dur = videoEl.duration || 1;
+  const t = (parseInt(e.target.value) / 1000) * dur;
+  videoEl.currentTime = t;
+  await new Promise(r => { videoEl.onseeked = r; });
 
-function buildStrip() {
-  const strip = document.getElementById('frame-strip');
-  strip.innerHTML = '';
-  frames.forEach((f, i) => {
-    const thumb = document.createElement('canvas');
-    thumb.className = 'frame-thumb';
-    thumb.width = 64;
-    thumb.height = 80;
-    const tc = thumb.getContext('2d');
-    const img = f.img;
-    const scale = Math.max(64 / img.width, 80 / img.height);
-    const sw = img.width * scale;
-    const sh = img.height * scale;
-    tc.drawImage(img, (64 - sw) / 2, (80 - sh) / 2, sw, sh);
-    thumb.addEventListener('click', () => showFrame(i));
-    strip.appendChild(thumb);
-  });
-}
-
-// Frame controls
-document.getElementById('frame-slider').addEventListener('input', e => showFrame(parseInt(e.target.value)));
-document.getElementById('prev-frame').addEventListener('click', () => showFrame(currentFrame - 1));
-document.getElementById('next-frame').addEventListener('click', () => showFrame(currentFrame + 1));
-
-// Tag phase
-let phaseIdx = 0;
-document.getElementById('tag-phase').addEventListener('click', () => {
-  frames[currentFrame].phase = phases[phaseIdx % phases.length];
-  document.getElementById('phase-label').textContent = frames[currentFrame].phase;
-  document.getElementById('phase-label').style.display = 'block';
-  phaseIdx++;
-  // Auto-advance
-  if (currentFrame < frames.length - 1) showFrame(currentFrame + 1);
+  // Draw preview on canvas
+  const tempC = document.createElement('canvas');
+  tempC.width = videoEl.videoWidth;
+  tempC.height = videoEl.videoHeight;
+  tempC.getContext('2d').drawImage(videoEl, 0, 0);
+  canvas.width = tempC.width;
+  canvas.height = tempC.height;
+  ctx.drawImage(tempC, 0, 0);
 });
 
-// Keyboard nav
-document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') showFrame(currentFrame - 1);
-  if (e.key === 'ArrowRight') showFrame(currentFrame + 1);
+// Recapture button — replaces the frame
+document.getElementById('recapture-btn').addEventListener('click', async () => {
+  if (selectedCardIdx < 0) return;
+
+  const dur = videoEl.duration || 1;
+  const scrubber = document.getElementById('recapture-scrubber');
+  const t = (parseInt(scrubber.value) / 1000) * dur;
+
+  // Capture frame from video
+  videoEl.currentTime = t;
+  await new Promise(r => { videoEl.onseeked = r; });
+
+  const tempC = document.createElement('canvas');
+  tempC.width = videoEl.videoWidth;
+  tempC.height = videoEl.videoHeight;
+  tempC.getContext('2d').drawImage(videoEl, 0, 0);
+
+  const img = new Image();
+  img.src = tempC.toDataURL('image/jpeg', 0.85);
+  await new Promise(r => { img.onload = r; });
+
+  frames[selectedCardIdx].img = img;
+  frames[selectedCardIdx].time = t;
+
+  // Update the card thumbnail
+  showPhaseCards();
+  document.getElementById('recapture-section').style.display = 'none';
+  selectedCardIdx = -1;
+});
+
+// Close recapture
+document.getElementById('recapture-close').addEventListener('click', () => {
+  document.getElementById('recapture-section').style.display = 'none';
+  document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('selected'));
+  selectedCardIdx = -1;
 });
 
 // ========== VIDEO UPLOAD + EXTRACTION ==========
@@ -936,67 +961,41 @@ function loadVideo(file) {
   reader.readAsArrayBuffer(file);
 }
 
-let extractCancelled = false;
-
 document.getElementById('extract-btn').addEventListener('click', async () => {
   const btn = document.getElementById('extract-btn');
-  extractCancelled = false;
   btn.disabled = true;
-  btn.innerHTML = 'Extracting... <span style="margin-left:8px;font-size:12px;color:rgba(255,255,255,0.6);text-decoration:underline;cursor:pointer;" id="cancel-extract">Cancel</span>';
-  document.getElementById('cancel-extract').addEventListener('click', (e) => {
-    e.stopPropagation();
-    extractCancelled = true;
-  });
+  btn.textContent = 'Extracting 6 frames...';
   const bar = document.getElementById('extract-progress');
   bar.style.display = 'block';
 
   frames = [];
   const v = videoEl;
-  await new Promise(r => { v.currentTime = 0; v.onseeked = r; });
-
-  const intervalSel = document.getElementById('frame-interval').value;
-  let times = [];
   const dur = v.duration;
 
-  if (intervalSel === 'auto') {
-    // Extract ~10 frames — fewer frames = AI tracks numbers more accurately
-    const count = Math.min(10, Math.max(6, Math.floor(dur * 15)));
-    for (let i = 0; i < count; i++) times.push((i / (count - 1)) * dur);
-  } else {
-    const ms = parseInt(intervalSel);
-    for (let t = 0; t < dur; t += ms / 1000) times.push(t);
-  }
+  // 6 evenly spaced times across the video
+  const times = [];
+  for (let i = 0; i < 6; i++) times.push((i / 5) * dur);
 
   const tempCanvas = document.createElement('canvas');
   const tempCtx = tempCanvas.getContext('2d');
   tempCanvas.width = v.videoWidth;
   tempCanvas.height = v.videoHeight;
 
-  for (let i = 0; i < times.length; i++) {
-    if (extractCancelled) break;
+  for (let i = 0; i < 6; i++) {
     v.currentTime = times[i];
     await new Promise(r => { v.onseeked = r; });
-    if (extractCancelled) break;
     tempCtx.drawImage(v, 0, 0);
     const img = new Image();
     img.src = tempCanvas.toDataURL('image/jpeg', 0.85);
     await new Promise(r => { img.onload = r; });
-    frames.push({ img, time: times[i], phase: null });
-    bar.querySelector('.fill').style.width = ((i + 1) / times.length * 100) + '%';
+    frames.push({ img, time: times[i], phase: PHASES[i] });
+    bar.querySelector('.fill').style.width = ((i + 1) / 6 * 100) + '%';
   }
 
-  if (extractCancelled) {
-    frames = [];
-    bar.style.display = 'none';
-    btn.textContent = 'Extract Frames';
-    btn.disabled = false;
-    return;
-  }
-
-  btn.textContent = 'Extract Frames';
+  btn.textContent = 'Extract 6 Key Frames';
   btn.disabled = false;
   bar.style.display = 'none';
-  showFrameUI();
+  showPhaseCards();
 });
 
 // ========== IMAGE UPLOAD ==========
@@ -1007,15 +1006,17 @@ imageUpload.addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name));
   frames = [];
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(files[i]);
     img.src = url;
     await new Promise(r => { img.onload = r; });
-    frames.push({ img, time: 0, phase: null, name: file.name });
+    // Assign phases in order if exactly 6 images, otherwise label generically
+    const phase = files.length === 6 ? PHASES[i] : (PHASES[i] || 'Frame ' + (i + 1));
+    frames.push({ img, time: 0, phase, name: files[i].name });
   }
   imageUpload.style.display = 'none';
-  showFrameUI();
+  showPhaseCards();
 });
 
 // ========== AI ANALYSIS ==========
@@ -1027,25 +1028,23 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
   resultEl.style.display = 'block';
   resultEl.textContent = 'Sending frames to AI for analysis...';
 
-  // Collect ALL frames as base64 — no subsampling
-  // Frame numbers must match exactly what Gavin sees in the thumbnail strip
+  // 6 phase-labeled frames — each has a confirmed phase tag
   const frameData = [];
   const tempC = document.createElement('canvas');
   const tempX = tempC.getContext('2d');
 
   for (let i = 0; i < frames.length; i++) {
     const img = frames[i].img;
-    // Scale down for API but keep enough detail to see hands/hips
-    tempC.width = Math.min(img.width, 640);
+    tempC.width = Math.min(img.width, 800);
     tempC.height = Math.round(img.height * (tempC.width / img.width));
     tempX.drawImage(img, 0, 0, tempC.width, tempC.height);
-    const b64 = tempC.toDataURL('image/jpeg', 0.6).split(',')[1];
+    const b64 = tempC.toDataURL('image/jpeg', 0.7).split(',')[1];
 
     frameData.push({
       base64: b64,
       index: i + 1,
       totalFrames: frames.length,
-      phase: frames[i].phase || null  // only if user tagged it
+      phase: frames[i].phase
     });
   }
 
@@ -1291,10 +1290,9 @@ document.getElementById('new-swing-btn').addEventListener('click', () => {
   videoEl.src = '';
   document.getElementById('video-container').style.display = 'none';
   document.getElementById('extract-section').style.display = 'none';
-  document.getElementById('frame-display').style.display = 'none';
-  document.getElementById('frame-controls').style.display = 'none';
-  document.getElementById('frame-strip').classList.remove('visible');
-  document.getElementById('frame-strip').innerHTML = '';
+  document.getElementById('phase-strip').style.display = 'none';
+  document.getElementById('phase-cards').innerHTML = '';
+  document.getElementById('recapture-section').style.display = 'none';
   document.getElementById('analyze-section').style.display = 'none';
   document.getElementById('analysis-result').style.display = 'none';
   document.getElementById('analysis-result').textContent = '';

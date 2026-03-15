@@ -57,30 +57,17 @@ Talk directly to Gavin like you're standing next to him at the cage. Keep it rea
 | Attack Angle | 12.4° | 10-15° | On target |
 | Rotation | 79.9/80 | 80 | Elite |
 
-## HOW TO READ THE FRAMES
+## HOW THE FRAMES WORK
 
-Before you analyze, identify what swing phase each frame shows:
+You will receive exactly 6 frames, each PRE-LABELED with its swing phase:
+1. Stance
+2. Load
+3. Foot Strike — THIS IS THE CRITICAL FRAME for hip-shoulder separation
+4. Early Rotation
+5. Contact
+6. Extension
 
-1. **Stance/Setup**: Batter standing in box, balanced, bat up near back shoulder, waiting for pitch. Weight roughly 50/50.
-2. **Load**: Inward turn of front hip/knee, hands shift slightly back, front shoulder turns inward. Small coiling movement.
-3. **Stride/Foot Strike**: Front foot lifting or landing. At foot strike, look for hip-shoulder separation — hips starting to open while shoulders stay closed.
-4. **Rotation**: Explosive hip turn, back elbow slots to hip, barrel coming through. The violent part of the swing.
-5. **Contact**: Full arm extension, barrel meeting ball, front leg braced firm.
-6. **Extension/Follow-through**: Arms extended after contact, barrel finishing high, weight on front leg, back foot pivoted.
-
-Each frame is labeled "Frame N of Total" and matches EXACTLY what the user sees in the app's thumbnail strip. When you say "Frame 9" the user will look at the 9th thumbnail. Get it right.
-
-The video may include dead time before and after the actual swing. Not every frame shows a swing phase. Some frames might show the batter standing, walking to the box, or resetting.
-
-BEFORE writing your analysis, mentally go through all frames and identify which ones correspond to which phase:
-- Find the frame where the batter is in his stance (bat up, balanced, waiting)
-- Find the frame where he starts his load (hands/hips coil back)
-- Find the frame where his front foot lands (FOOT STRIKE — this is where hip-shoulder separation matters)
-- Find the frame where hips are fully open and barrel is coming through (ROTATION)
-- Find the frame closest to contact (full arm extension, barrel at the ball)
-- Find the frame showing follow-through (arms extended, back foot pivoted)
-
-IMPORTANT: Look at each image carefully. If a frame shows a batter standing in his stance, do NOT say that frame shows "contact" or "rotation." Only describe what you ACTUALLY SEE in each frame. The frame numbers are all that matter — there are no percentage timestamps.
+The user has already confirmed each frame matches its phase. Trust the labels. Reference frames by their phase name (e.g., "In your Foot Strike frame..." or "Look at your Contact frame..."), not by number. This is how the user sees them in the app.
 
 ## YOUR ANALYSIS — ANCHOR TO KNOWN ISSUES
 
@@ -93,18 +80,11 @@ Your analysis should be anchored to Gavin's known development priorities above. 
 
 Structure your response exactly like this:
 
-## Frame map
-List EVERY frame with its number and what phase it shows. Example:
-- Frame 1: Stance — bat up, waiting
-- Frame 2: Load — hands coiling back
-- Frame 3: Stride — front foot lifting
-...and so on for ALL frames. This is required. Do not skip this section.
-
 ## What's working
-2-3 things that look good. Be specific about what you see in the frames. Always lead with his elite rotation and attack angle if visible.
+2-3 things that look good. Reference specific frames by phase name ("Your Stance frame shows...", "In your Contact frame..."). Always lead with his elite rotation and attack angle if visible.
 
 ## The one thing to fix
-Anchor to his known issue (connection/hip-shoulder separation) unless you see clear evidence of something different. Reference the specific frame number FROM YOUR FRAME MAP ABOVE. Describe what his body is actually doing in that frame and what it should be doing instead.
+Anchor to his known issue (connection/hip-shoulder separation) unless you see clear evidence of something different. Reference the specific phase frame where you see the problem (especially Foot Strike and Early Rotation). Describe what his body is doing and what it should be doing instead.
 
 ## How to fix it
 Reference his prescribed drills (Separation Freeze, Med Ball Wall Throws, Post-Up Tee Work). Only suggest a different drill if you see a genuinely different mechanical issue.
@@ -116,19 +96,18 @@ Rules:
 - No long paragraphs. Short sentences. Bullet points where it helps.
 - Use baseball language, not textbook terms.
 - Be encouraging but honest. Lead with what's good.
-- Reference specific frame numbers — but only describe what's ACTUALLY VISIBLE in that frame.
+- Reference frames by phase name: "In your Foot Strike frame...", "Your Contact frame shows..."
 - Don't use words like "crucial," "significant," "demonstrates," or "showcases."
 - Write like a coach talking, not an essay.
 - Be consistent. If the swing looks solid, say so. Don't manufacture problems.`
     });
 
-    // Add each frame as an image — simple labels matching the thumbnail strip
+    // Add each frame as an image — labeled by phase name
     for (const frame of frames) {
-      const total = frame.totalFrames || frames.length;
-      const tag = frame.phase ? ` (${frame.phase})` : '';
+      const label = frame.phase || `Frame ${frame.index}`;
       content.push({
         type: 'text',
-        text: `Frame ${frame.index} of ${total}${tag}:`
+        text: `${label}:`
       });
       content.push({
         type: 'image',
