@@ -691,35 +691,11 @@ body {
   </div>
 
   <div class="section-label">Pre-cage warmup</div>
-
-  <div class="drill-card">
-    <div class="drill-header">
-      <span class="drill-name">Separation Freeze</span>
-      <span class="drill-rx">15 reps</span>
-    </div>
-    <div class="drill-desc">Stride and freeze. Don't swing. Check: hips starting to open, front shoulder still pointed at the catcher. If your shoulder opened with your hips, reset.</div>
-    <div class="drill-focus">Focus: Feel the stretch across your midsection at foot strike</div>
-  </div>
-
-  <div class="drill-card">
-    <div class="drill-header">
-      <span class="drill-name">Med Ball Wall Throws</span>
-      <span class="drill-rx">3 x 8</span>
-    </div>
-    <div class="drill-desc">Stand sideways to a wall. Load back, throw a 6-8 lb med ball into the wall by rotating hips first, arms follow. If your arms are doing the work, slow down.</div>
-    <div class="drill-focus">Focus: Hips start the throw, arms just come along for the ride</div>
-  </div>
+  <div id="drill-slot-0"></div>
+  <div id="drill-slot-1"></div>
 
   <div class="section-label">Cage work</div>
-
-  <div class="drill-card">
-    <div class="drill-header">
-      <span class="drill-name">Post-Up Tee Work</span>
-      <span class="drill-rx">20 swings</span>
-    </div>
-    <div class="drill-desc">Only focus: front leg firm at contact like a post. Hold your finish 2 seconds. If your front knee is soft or you're falling forward, that's energy leaking.</div>
-    <div class="drill-focus">Focus: Firm front leg, balanced finish you can hold</div>
-  </div>
+  <div id="drill-slot-2"></div>
 
   <div class="section-label" style="margin-top:24px">Track your progress</div>
   <div style="background:var(--dark2);border-radius:10px;padding:16px;display:flex;justify-content:space-around;text-align:center;">
@@ -1312,6 +1288,96 @@ function renderBlastStats(data) {
   // Update drills tab current connection
   document.getElementById('drill-current-conn').textContent = avgConn;
 }
+
+// ========== DRILL SWAP SYSTEM ==========
+// Each slot has a primary drill and alternatives that target the same issue.
+// Gavin can swap if a drill isn't clicking for him.
+
+const DRILL_LIBRARY = {
+  slot0: {
+    category: 'warmup',
+    target: 'Hip-shoulder separation',
+    drills: [
+      { name: 'Separation Freeze', rx: '15 reps', desc: 'Stride and freeze. Don\'t swing. Check: hips starting to open, front shoulder still pointed at the catcher. If your shoulder opened with your hips, reset.', focus: 'Feel the stretch across your midsection at foot strike' },
+      { name: 'Resistance Band Turns', rx: '12 reps', desc: 'Wrap a light band around your back and hold the ends. Get in your stance. Stride and rotate hips against the band resistance while keeping shoulders closed. The band forces you to feel the separation.', focus: 'Hips pull against the band while shoulders stay back' },
+      { name: 'Bat Behind Back Turns', rx: '15 reps', desc: 'Hold a bat across your shoulders behind your neck. Get in your stance. Stride, then rotate hips only. The bat shows you exactly when your shoulders start turning. If the bat turns with your hips, reset.', focus: 'Watch the bat. It should stay still when your hips go.' }
+    ]
+  },
+  slot1: {
+    category: 'warmup',
+    target: 'Sequential rotation',
+    drills: [
+      { name: 'Med Ball Wall Throws', rx: '3 x 8', desc: 'Stand sideways to a wall. Load back, throw a 6-8 lb med ball into the wall by rotating hips first, arms follow. If your arms are doing the work, slow down.', focus: 'Hips start the throw, arms just come along for the ride' },
+      { name: 'Pivot Pickoffs', rx: '3 x 10', desc: 'Get in your stance with a ball. Stride, then fire your hips like you\'re throwing to first base on a pickoff. Keep your upper body quiet. It\'s all lower half.', focus: 'Lower half does all the work, hands stay back' },
+      { name: 'Hip Lead Dry Swings', rx: '15 reps', desc: 'Normal stance, no bat. Stride, then rotate hips hard. Pause. Count one-one-thousand. THEN let your shoulders and arms follow. Exaggerate the delay until you feel the stretch.', focus: 'Two-count rhythm: hips fire, pause, then shoulders follow' }
+    ]
+  },
+  slot2: {
+    category: 'cage',
+    target: 'Front leg brace / energy transfer',
+    drills: [
+      { name: 'Post-Up Tee Work', rx: '20 swings', desc: 'Only focus: front leg firm at contact like a post. Hold your finish 2 seconds. If your front knee is soft or you\'re falling forward, that\'s energy leaking.', focus: 'Firm front leg, balanced finish you can hold' },
+      { name: 'Fence Drill Tee Work', rx: '15 swings', desc: 'Set up a tee with your front foot next to a fence or net. Swing. If your body drifts forward into the fence, you\'re lunging. Stay back and rotate around a firm front side.', focus: 'Rotate, don\'t slide. Front side is a wall.' },
+      { name: 'One Knee Power Tee', rx: '15 swings', desc: 'Kneel on your back knee, front leg out firm and straight. Hit off a tee. This takes your lower body drift completely out of it. All rotation, all connection.', focus: 'Pure rotation around a fixed front side' }
+    ]
+  }
+};
+
+// Track which drill is active in each slot (index into the drills array)
+let activeDrills = [0, 0, 0];
+
+// Load saved drill selections from localStorage
+try {
+  const saved = JSON.parse(localStorage.getItem('swinglab_active_drills') || '[]');
+  if (saved.length === 3) activeDrills = saved;
+} catch {}
+
+function renderDrillSlot(slotIdx) {
+  const slot = DRILL_LIBRARY['slot' + slotIdx];
+  const drillIdx = activeDrills[slotIdx];
+  const drill = slot.drills[drillIdx];
+  const container = document.getElementById('drill-slot-' + slotIdx);
+
+  const altCount = slot.drills.length - 1;
+
+  container.innerHTML = `
+    <div class="drill-card">
+      <div class="drill-header">
+        <span class="drill-name">${drill.name}</span>
+        <span class="drill-rx">${drill.rx}</span>
+      </div>
+      <div class="drill-desc">${drill.desc}</div>
+      <div class="drill-focus">Focus: ${drill.focus}</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #333;">
+        <button onclick="swapDrill(${slotIdx})" style="background:none;border:1px solid #444;border-radius:6px;color:var(--gray);font-size:12px;padding:6px 12px;cursor:pointer;touch-action:manipulation;">
+          &#128260; Not clicking? Swap drill (${altCount} alternatives)
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function swapDrill(slotIdx) {
+  const slot = DRILL_LIBRARY['slot' + slotIdx];
+  // Cycle to next drill
+  activeDrills[slotIdx] = (activeDrills[slotIdx] + 1) % slot.drills.length;
+  // Save selection
+  try { localStorage.setItem('swinglab_active_drills', JSON.stringify(activeDrills)); } catch {}
+  renderDrillSlot(slotIdx);
+
+  // Brief highlight to show the swap happened
+  const card = document.querySelector('#drill-slot-' + slotIdx + ' .drill-card');
+  card.style.borderLeftColor = 'var(--green)';
+  setTimeout(() => { card.style.borderLeftColor = 'var(--garnet)'; }, 800);
+}
+
+// Make swapDrill available globally
+window.swapDrill = swapDrill;
+
+// Render all drill slots on load
+renderDrillSlot(0);
+renderDrillSlot(1);
+renderDrillSlot(2);
 
 // ========== SWING SESSION MEMORY ==========
 // Stores summaries of previous analyses this session so coaching can reference progress
