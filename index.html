@@ -784,8 +784,9 @@ function openRecapture(idx) {
   canvas.height = img.naturalHeight || img.height;
   ctx.drawImage(img, 0, 0);
 
-  // Set scrubber to this frame's time position
+  // Seek video to this frame's time so Prev/Next work correctly
   const dur = videoEl.duration || 1;
+  videoEl.currentTime = f.time;
   const scrubber = document.getElementById('recapture-scrubber');
   scrubber.value = Math.round((f.time / dur) * 1000);
 
