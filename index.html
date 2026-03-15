@@ -880,6 +880,9 @@ document.getElementById('recapture-btn').addEventListener('click', async () => {
   frames[selectedCardIdx].img = img;
   frames[selectedCardIdx].time = t;
 
+  // Learn this phase's position — save to localStorage for smarter future extractions
+  learnPhasePosition(frames[selectedCardIdx].phase, t / dur);
+
   // Update the card thumbnail
   showPhaseCards();
   document.getElementById('recapture-section').style.display = 'none';
@@ -892,6 +895,41 @@ document.getElementById('recapture-close').addEventListener('click', () => {
   document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('selected'));
   selectedCardIdx = -1;
 });
+
+// ========== PHASE TIMING LEARNING ==========
+// Stores recapture positions so extraction gets smarter over time.
+// Each phase gets a running average of where it lands in the video (as % of duration).
+// After ~3 recaptures per phase, the extraction will nail the positions automatically.
+
+function getLearnedPositions() {
+  try {
+    return JSON.parse(localStorage.getItem('swinglab_phase_positions') || '{}');
+  } catch { return {}; }
+}
+
+function learnPhasePosition(phase, pct) {
+  const data = getLearnedPositions();
+  if (!data[phase]) data[phase] = { samples: [], avg: pct };
+  data[phase].samples.push(pct);
+  // Keep last 10 samples, compute running average
+  if (data[phase].samples.length > 10) data[phase].samples.shift();
+  data[phase].avg = data[phase].samples.reduce((a, b) => a + b, 0) / data[phase].samples.length;
+  try { localStorage.setItem('swinglab_phase_positions', JSON.stringify(data)); } catch {}
+}
+
+function getSmartExtractionTimes(dur) {
+  const learned = getLearnedPositions();
+  const defaults = [0, 0.2, 0.4, 0.6, 0.8, 1.0]; // evenly spaced fallback
+
+  return PHASES.map((phase, i) => {
+    if (learned[phase] && learned[phase].samples.length >= 2) {
+      // Use learned position
+      return learned[phase].avg * dur;
+    }
+    // Fall back to even spacing
+    return defaults[i] * dur;
+  });
+}
 
 // ========== VIDEO UPLOAD + EXTRACTION ==========
 const videoUpload = document.getElementById('video-upload');
@@ -996,9 +1034,8 @@ document.getElementById('extract-btn').addEventListener('click', async () => {
   const v = videoEl;
   const dur = v.duration;
 
-  // 6 evenly spaced times across the video
-  const times = [];
-  for (let i = 0; i < 6; i++) times.push((i / 5) * dur);
+  // Use learned phase positions if available, otherwise evenly spaced
+  const times = getSmartExtractionTimes(dur);
 
   const tempCanvas = document.createElement('canvas');
   const tempCtx = tempCanvas.getContext('2d');
