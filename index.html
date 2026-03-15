@@ -560,12 +560,25 @@ body {
 
     <div class="video-container" id="video-container">
       <video id="swing-video" controls playsinline></video>
+      <!-- Frame-by-frame controls below video -->
+      <div id="video-frame-controls" style="background:var(--dark2);border-radius:0 0 10px 10px;padding:12px;margin-top:-4px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="range" id="video-scrubber" min="0" max="1000" value="0" style="flex:1;accent-color:var(--garnet);height:6px;">
+          <span id="video-time-display" style="font-size:12px;color:var(--gray);font-variant-numeric:tabular-nums;min-width:70px;text-align:center;">0:00.00</span>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button id="frame-prev" class="frame-btn" style="flex:1;text-align:center;">&#9664; Prev Frame</button>
+          <button id="frame-next" class="frame-btn" style="flex:1;text-align:center;">Next Frame &#9654;</button>
+        </div>
+      </div>
     </div>
 
-    <div class="extract-section" id="extract-section">
-      <button class="extract-btn" id="extract-btn">Extract 6 Key Frames</button>
-      <div style="font-size:12px;color:#555;text-align:center;margin-top:8px;">Stance · Load · Foot Strike · Early Rotation · Contact · Extension</div>
-      <div class="progress-bar" id="extract-progress"><div class="fill"></div></div>
+    <!-- Analyze button — shown after video loads -->
+    <div id="analyze-after-video" style="display:none;margin:16px 0;">
+      <button class="analyze-btn" id="analyze-btn">
+        &#9918; Analyze Swing
+      </button>
+      <div class="progress-bar" id="extract-progress" style="margin-top:8px;"><div class="fill"></div></div>
     </div>
   </div>
 
@@ -574,40 +587,14 @@ body {
     <div class="image-upload-zone" id="image-upload">
       <div class="icon" style="font-size:40px">&#128248;</div>
       <p>Tap to upload swing frames</p>
-      <div class="hint" style="font-size:12px;color:#555;margin-top:8px">Select multiple images from your camera roll</div>
+      <div class="hint" style="font-size:12px;color:#555;margin-top:8px">Select 6 images — one per phase: Stance, Load, Foot Strike, Early Rotation, Contact, Extension</div>
       <input type="file" accept="image/*" multiple id="image-input" style="display:none">
     </div>
-  </div>
-
-  <!-- Phase frame strip — 6 labeled cards -->
-  <div id="phase-strip" style="display:none;margin-bottom:16px;">
-    <div style="font-size:13px;color:var(--gray);margin-bottom:8px;text-align:center;">Tap a frame to adjust it. Scrub the video and tap Recapture.</div>
-    <div id="phase-cards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
-  </div>
-
-  <!-- Selected frame viewer + recapture -->
-  <div id="recapture-section" style="display:none;background:var(--dark2);border-radius:12px;padding:12px;margin-bottom:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span id="recapture-phase" style="font-size:14px;font-weight:700;color:var(--garnet-light);"></span>
-      <button id="recapture-close" style="background:none;border:none;color:var(--gray);font-size:18px;cursor:pointer;">&#10005;</button>
+    <div class="analyze-section" id="image-analyze-section" style="display:none;">
+      <button class="analyze-btn" id="image-analyze-btn">
+        &#9918; Analyze Swing
+      </button>
     </div>
-    <canvas id="frame-canvas" style="width:100%;border-radius:8px;background:#000;"></canvas>
-    <div style="margin-top:10px;">
-      <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">Scrub to the right moment:</div>
-      <input type="range" id="recapture-scrubber" min="0" max="1000" value="0" style="width:100%;accent-color:var(--garnet);">
-      <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
-        <button id="recapture-prev" class="frame-btn" style="flex:1;text-align:center;">&#9664; Prev Frame</button>
-        <button id="recapture-next" class="frame-btn" style="flex:1;text-align:center;">Next Frame &#9654;</button>
-      </div>
-    </div>
-    <button id="recapture-btn" class="frame-btn primary" style="width:100%;margin-top:8px;text-align:center;">Recapture This Frame</button>
-  </div>
-
-  <!-- Analyze -->
-  <div class="analyze-section" id="analyze-section">
-    <button class="analyze-btn" id="analyze-btn">
-      &#9918; Analyze Swing
-    </button>
   </div>
 
   <div class="analysis-result" id="analysis-result"></div>
@@ -734,179 +721,55 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 
 // ========== FRAME STATE ==========
 let frames = [];
-let currentFrame = 0;
-let selectedCardIdx = -1;
-const canvas = document.getElementById('frame-canvas');
-const ctx = canvas.getContext('2d');
+let transitionFrames = [];
 const PHASES = ['Stance', 'Load', 'Foot Strike', 'Early Rotation', 'Contact', 'Extension'];
+const TRANSITION_LABELS = [
+  'Stance → Load (1/2)', 'Stance → Load (2/2)',
+  'Load → Foot Strike (1/2)', 'Load → Foot Strike (2/2)',
+  'Foot Strike → Early Rotation (1/2)', 'Foot Strike → Early Rotation (2/2)',
+  'Early Rotation → Contact (1/2)', 'Early Rotation → Contact (2/2)',
+  'Contact → Extension (1/2)', 'Contact → Extension (2/2)'
+];
 
-function showPhaseCards() {
-  const container = document.getElementById('phase-cards');
-  container.innerHTML = '';
-  document.getElementById('phase-strip').style.display = 'block';
-  document.getElementById('analyze-section').style.display = 'block';
-
-  frames.forEach((f, i) => {
-    const card = document.createElement('div');
-    card.className = 'phase-card';
-    card.dataset.idx = i;
-
-    const thumb = document.createElement('canvas');
-    thumb.width = 200;
-    thumb.height = 267;
-    const tc = thumb.getContext('2d');
-    const img = f.img;
-    const scale = Math.max(200 / img.width, 267 / img.height);
-    const sw = img.width * scale;
-    const sh = img.height * scale;
-    tc.drawImage(img, (200 - sw) / 2, (267 - sh) / 2, sw, sh);
-
-    const label = document.createElement('div');
-    label.className = 'phase-name';
-    label.textContent = f.phase;
-
-    card.appendChild(thumb);
-    card.appendChild(label);
-    card.addEventListener('click', () => openRecapture(i));
-    container.appendChild(card);
-  });
+// Evenly space 6 phase extraction times across the video duration
+function getExtractionTimes(dur) {
+  const positions = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+  return positions.map(p => p * dur);
 }
 
-function openRecapture(idx) {
-  selectedCardIdx = idx;
-  const f = frames[idx];
-  document.getElementById('recapture-phase').textContent = f.phase;
-  document.getElementById('recapture-section').style.display = 'block';
+// ========== VIDEO SCRUBBER + FRAME-BY-FRAME ==========
+const FRAME_STEP = 1 / 30; // ~1 frame at 30fps
 
-  // Draw current frame on canvas
-  const img = f.img;
-  canvas.width = img.naturalWidth || img.width;
-  canvas.height = img.naturalHeight || img.height;
-  ctx.drawImage(img, 0, 0);
-
-  // Seek video to this frame's time so Prev/Next work correctly
-  const dur = videoEl.duration || 1;
-  videoEl.currentTime = f.time;
-  const scrubber = document.getElementById('recapture-scrubber');
-  scrubber.value = Math.round((f.time / dur) * 1000);
-
-  // Highlight selected card
-  document.querySelectorAll('.phase-card').forEach((c, i) => {
-    c.classList.toggle('selected', i === idx);
-  });
+function updateTimeDisplay() {
+  const v = document.getElementById('swing-video');
+  const t = v.currentTime || 0;
+  const dur = v.duration || 1;
+  const min = Math.floor(t / 60);
+  const sec = (t % 60).toFixed(2).padStart(5, '0');
+  document.getElementById('video-time-display').textContent = min + ':' + sec;
+  document.getElementById('video-scrubber').value = Math.round((t / dur) * 1000);
 }
 
-// Shared function to seek video and draw preview on canvas
-async function seekAndPreview(t) {
-  const dur = videoEl.duration || 1;
-  const clamped = Math.max(0, Math.min(t, dur));
-  videoEl.currentTime = clamped;
-  await new Promise(r => { videoEl.onseeked = r; });
-
-  const tempC = document.createElement('canvas');
-  tempC.width = videoEl.videoWidth;
-  tempC.height = videoEl.videoHeight;
-  tempC.getContext('2d').drawImage(videoEl, 0, 0);
-  canvas.width = tempC.width;
-  canvas.height = tempC.height;
-  ctx.drawImage(tempC, 0, 0);
-
-  // Sync scrubber position
-  document.getElementById('recapture-scrubber').value = Math.round((clamped / dur) * 1000);
-}
-
-// Recapture scrubber — seeks video and shows preview
-document.getElementById('recapture-scrubber').addEventListener('input', async (e) => {
-  const dur = videoEl.duration || 1;
-  const t = (parseInt(e.target.value) / 1000) * dur;
-  await seekAndPreview(t);
+document.getElementById('video-scrubber').addEventListener('input', (e) => {
+  const v = document.getElementById('swing-video');
+  const dur = v.duration || 1;
+  v.currentTime = (parseInt(e.target.value) / 1000) * dur;
 });
 
-// Frame-by-frame buttons (~1/30s per step, works for 30fps and 60fps video)
-const FRAME_STEP = 1 / 30;
+document.getElementById('swing-video').addEventListener('timeupdate', updateTimeDisplay);
+document.getElementById('swing-video').addEventListener('seeked', updateTimeDisplay);
 
-document.getElementById('recapture-prev').addEventListener('click', async () => {
-  await seekAndPreview(videoEl.currentTime - FRAME_STEP);
+document.getElementById('frame-prev').addEventListener('click', () => {
+  const v = document.getElementById('swing-video');
+  v.pause();
+  v.currentTime = Math.max(0, v.currentTime - FRAME_STEP);
 });
 
-document.getElementById('recapture-next').addEventListener('click', async () => {
-  await seekAndPreview(videoEl.currentTime + FRAME_STEP);
+document.getElementById('frame-next').addEventListener('click', () => {
+  const v = document.getElementById('swing-video');
+  v.pause();
+  v.currentTime = Math.min(v.duration, v.currentTime + FRAME_STEP);
 });
-
-// Recapture button — replaces the frame
-document.getElementById('recapture-btn').addEventListener('click', async () => {
-  if (selectedCardIdx < 0) return;
-
-  const dur = videoEl.duration || 1;
-  const scrubber = document.getElementById('recapture-scrubber');
-  const t = (parseInt(scrubber.value) / 1000) * dur;
-
-  // Capture frame from video
-  videoEl.currentTime = t;
-  await new Promise(r => { videoEl.onseeked = r; });
-
-  const tempC = document.createElement('canvas');
-  tempC.width = videoEl.videoWidth;
-  tempC.height = videoEl.videoHeight;
-  tempC.getContext('2d').drawImage(videoEl, 0, 0);
-
-  const img = new Image();
-  img.src = tempC.toDataURL('image/jpeg', 0.85);
-  await new Promise(r => { img.onload = r; });
-
-  frames[selectedCardIdx].img = img;
-  frames[selectedCardIdx].time = t;
-
-  // Learn this phase's position — save to localStorage for smarter future extractions
-  learnPhasePosition(frames[selectedCardIdx].phase, t / dur);
-
-  // Update the card thumbnail
-  showPhaseCards();
-  document.getElementById('recapture-section').style.display = 'none';
-  selectedCardIdx = -1;
-});
-
-// Close recapture
-document.getElementById('recapture-close').addEventListener('click', () => {
-  document.getElementById('recapture-section').style.display = 'none';
-  document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('selected'));
-  selectedCardIdx = -1;
-});
-
-// ========== PHASE TIMING LEARNING ==========
-// Stores recapture positions so extraction gets smarter over time.
-// Each phase gets a running average of where it lands in the video (as % of duration).
-// After ~3 recaptures per phase, the extraction will nail the positions automatically.
-
-function getLearnedPositions() {
-  try {
-    return JSON.parse(localStorage.getItem('swinglab_phase_positions') || '{}');
-  } catch { return {}; }
-}
-
-function learnPhasePosition(phase, pct) {
-  const data = getLearnedPositions();
-  if (!data[phase]) data[phase] = { samples: [], avg: pct };
-  data[phase].samples.push(pct);
-  // Keep last 10 samples, compute running average
-  if (data[phase].samples.length > 10) data[phase].samples.shift();
-  data[phase].avg = data[phase].samples.reduce((a, b) => a + b, 0) / data[phase].samples.length;
-  try { localStorage.setItem('swinglab_phase_positions', JSON.stringify(data)); } catch {}
-}
-
-function getSmartExtractionTimes(dur) {
-  const learned = getLearnedPositions();
-  const defaults = [0, 0.2, 0.4, 0.6, 0.8, 1.0]; // evenly spaced fallback
-
-  return PHASES.map((phase, i) => {
-    if (learned[phase] && learned[phase].samples.length >= 2) {
-      // Use learned position
-      return learned[phase].avg * dur;
-    }
-    // Fall back to even spacing
-    return defaults[i] * dur;
-  });
-}
 
 // ========== VIDEO UPLOAD + EXTRACTION ==========
 const videoUpload = document.getElementById('video-upload');
@@ -933,7 +796,7 @@ document.getElementById('cancel-upload-btn').addEventListener('click', () => {
   videoEl.src = '';
   document.getElementById('upload-progress-area').style.display = 'none';
   document.getElementById('video-container').style.display = 'none';
-  document.getElementById('extract-section').style.display = 'none';
+  document.getElementById('analyze-after-video').style.display = 'none';
   videoUpload.style.display = 'block';
   videoInput.value = '';
 });
@@ -974,7 +837,7 @@ function loadVideo(file) {
       clearTimeout(fallbackTimer);
       progressArea.style.display = 'none';
       document.getElementById('video-container').style.display = 'block';
-      document.getElementById('extract-section').style.display = 'block';
+      document.getElementById('analyze-after-video').style.display = 'block';
     };
     videoEl.addEventListener('loadeddata', onReady, { once: true });
     videoEl.addEventListener('canplay', onReady, { once: true });
@@ -1000,41 +863,56 @@ function loadVideo(file) {
   reader.readAsArrayBuffer(file);
 }
 
-document.getElementById('extract-btn').addEventListener('click', async () => {
-  const btn = document.getElementById('extract-btn');
-  btn.disabled = true;
-  btn.textContent = 'Extracting 6 frames...';
-  const bar = document.getElementById('extract-progress');
-  bar.style.display = 'block';
-
+// ========== SILENT FRAME EXTRACTION (called during analysis) ==========
+async function extractAllFrames() {
   frames = [];
+  transitionFrames = [];
   const v = videoEl;
   const dur = v.duration;
-
-  // Use learned phase positions if available, otherwise evenly spaced
-  const times = getSmartExtractionTimes(dur);
+  const phaseTimes = getExtractionTimes(dur);
+  const bar = document.getElementById('extract-progress');
+  bar.style.display = 'block';
 
   const tempCanvas = document.createElement('canvas');
   const tempCtx = tempCanvas.getContext('2d');
   tempCanvas.width = v.videoWidth;
   tempCanvas.height = v.videoHeight;
 
-  for (let i = 0; i < 6; i++) {
-    v.currentTime = times[i];
+  async function captureAt(t) {
+    v.currentTime = Math.max(0, Math.min(t, dur));
     await new Promise(r => { v.onseeked = r; });
     tempCtx.drawImage(v, 0, 0);
     const img = new Image();
     img.src = tempCanvas.toDataURL('image/jpeg', 0.85);
     await new Promise(r => { img.onload = r; });
-    frames.push({ img, time: times[i], phase: PHASES[i] });
-    bar.querySelector('.fill').style.width = ((i + 1) / 6 * 100) + '%';
+    return img;
   }
 
-  btn.textContent = 'Extract 6 Key Frames';
-  btn.disabled = false;
+  const totalFrames = 16;
+  let extracted = 0;
+
+  for (let i = 0; i < 6; i++) {
+    const img = await captureAt(phaseTimes[i]);
+    frames.push({ img, time: phaseTimes[i], phase: PHASES[i] });
+    extracted++;
+    bar.querySelector('.fill').style.width = (extracted / totalFrames * 100) + '%';
+
+    if (i < 5) {
+      const tStart = phaseTimes[i];
+      const tEnd = phaseTimes[i + 1];
+      const gap = tEnd - tStart;
+      for (let t = 1; t <= 2; t++) {
+        const tTime = tStart + (gap * t / 3);
+        const tImg = await captureAt(tTime);
+        const labelIdx = i * 2 + (t - 1);
+        transitionFrames.push({ img: tImg, time: tTime, phase: TRANSITION_LABELS[labelIdx] });
+        extracted++;
+        bar.querySelector('.fill').style.width = (extracted / totalFrames * 100) + '%';
+      }
+    }
+  }
   bar.style.display = 'none';
-  showPhaseCards();
-});
+}
 
 // ========== IMAGE UPLOAD ==========
 const imageUpload = document.getElementById('image-upload');
@@ -1044,46 +922,55 @@ imageUpload.addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files).sort((a, b) => a.name.localeCompare(b.name));
   frames = [];
+  transitionFrames = [];
   for (let i = 0; i < files.length; i++) {
     const img = new Image();
     const url = URL.createObjectURL(files[i]);
     img.src = url;
     await new Promise(r => { img.onload = r; });
-    // Assign phases in order if exactly 6 images, otherwise label generically
     const phase = files.length === 6 ? PHASES[i] : (PHASES[i] || 'Frame ' + (i + 1));
     frames.push({ img, time: 0, phase, name: files[i].name });
   }
   imageUpload.style.display = 'none';
-  showPhaseCards();
+  document.getElementById('image-analyze-section').style.display = 'block';
 });
 
 // ========== AI ANALYSIS ==========
-document.getElementById('analyze-btn').addEventListener('click', async () => {
-  const btn = document.getElementById('analyze-btn');
+async function runAnalysis(btn) {
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  btn.innerHTML = '<span class="spinner"></span> Extracting & Analyzing...';
   const resultEl = document.getElementById('analysis-result');
   resultEl.style.display = 'block';
-  resultEl.textContent = 'Sending frames to AI for analysis...';
+  resultEl.textContent = 'Extracting frames from video...';
 
-  // 6 phase-labeled frames — each has a confirmed phase tag
+  // Extract 16 frames silently (6 primary + 10 transition)
+  if (videoEl.src && videoEl.duration) {
+    await extractAllFrames();
+  }
+
+  resultEl.textContent = 'Sending 16 frames to AI for analysis...';
+
+  // Encode all frames for API
   const frameData = [];
   const tempC = document.createElement('canvas');
   const tempX = tempC.getContext('2d');
 
-  for (let i = 0; i < frames.length; i++) {
-    const img = frames[i].img;
+  function encodeFrame(img, phase, isPrimary) {
     tempC.width = Math.min(img.width, 800);
     tempC.height = Math.round(img.height * (tempC.width / img.width));
     tempX.drawImage(img, 0, 0, tempC.width, tempC.height);
     const b64 = tempC.toDataURL('image/jpeg', 0.7).split(',')[1];
+    return { base64: b64, phase, isPrimary };
+  }
 
-    frameData.push({
-      base64: b64,
-      index: i + 1,
-      totalFrames: frames.length,
-      phase: frames[i].phase
-    });
+  // Interleave primary + transition in chronological order
+  for (let i = 0; i < frames.length; i++) {
+    frameData.push(encodeFrame(frames[i].img, frames[i].phase, true));
+    if (i < frames.length - 1) {
+      const tIdx = i * 2;
+      if (transitionFrames[tIdx]) frameData.push(encodeFrame(transitionFrames[tIdx].img, transitionFrames[tIdx].phase, false));
+      if (transitionFrames[tIdx + 1]) frameData.push(encodeFrame(transitionFrames[tIdx + 1].img, transitionFrames[tIdx + 1].phase, false));
+    }
   }
 
   // Include blast data summary if available
@@ -1135,6 +1022,14 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
 
   btn.disabled = false;
   btn.innerHTML = '&#9918; Analyze Swing';
+}
+
+// Wire up both analyze buttons (video mode + image mode)
+document.getElementById('analyze-btn').addEventListener('click', async () => {
+  await runAnalysis(document.getElementById('analyze-btn'));
+});
+document.getElementById('image-analyze-btn').addEventListener('click', async () => {
+  await runAnalysis(document.getElementById('image-analyze-btn'));
 });
 
 function formatAnalysis(text) {
@@ -1409,19 +1304,15 @@ function getSwingHistoryContext() {
 document.getElementById('new-swing-btn').addEventListener('click', () => {
   // Reset everything for a fresh swing upload
   frames = [];
-  currentFrame = 0;
-  extractCancelled = false;
+  transitionFrames = [];
   uploadCancelled = false;
   if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
 
   // Reset UI
   videoEl.src = '';
   document.getElementById('video-container').style.display = 'none';
-  document.getElementById('extract-section').style.display = 'none';
-  document.getElementById('phase-strip').style.display = 'none';
-  document.getElementById('phase-cards').innerHTML = '';
-  document.getElementById('recapture-section').style.display = 'none';
-  document.getElementById('analyze-section').style.display = 'none';
+  document.getElementById('analyze-after-video').style.display = 'none';
+  document.getElementById('image-analyze-section').style.display = 'none';
   document.getElementById('analysis-result').style.display = 'none';
   document.getElementById('analysis-result').textContent = '';
   document.getElementById('new-swing-section').style.display = 'none';
